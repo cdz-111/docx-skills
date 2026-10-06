@@ -1,0 +1,112 @@
+{
+ "source": {
+  "style_from": "template",
+  "template": "C:/path/to/参考模板.docx"
+ },
+ "styles": {
+  "map": {
+   "paragraph": "正文",
+   "heading": {
+    "1": "标题 1",
+    "2": "标题 2",
+    "3": "标题 3",
+    "4": "标题 4",
+    "5": "标题 5",
+    "6": "标题 6"
+   },
+   "caption": "题注",
+   "image": "图片",
+   "table_text": "表格表头文字",
+   "toc_title": "目录标题",
+   "toc": {
+    "1": "目录 1",
+    "2": "目录 2",
+    "3": "目录 3"
+   },
+   "appendix": "附录",
+   "formula_number": "公式编号",
+   "header": "页眉",
+   "footer": "页脚"
+  },
+  "new_styles": {
+   "目录标题": {
+    "align": "center",
+    "first_line": 0,
+    "based_on": "正文",
+    "size": 16,
+    "font": "黑体",
+    "bold": true
+   },
+   "图片": {
+    "align": "center",
+    "first_line": 0,
+    "based_on": "正文"
+   },
+   "标题 5": {
+    "based_on": "正文",
+    "size": 16,
+    "font": "仿宋_GB2312",
+    "bold": true,
+    "first_line": 0,
+    "align": 0,
+    "before": 0,
+    "after": 0
+   },
+   "标题 6": {
+    "based_on": "正文",
+    "size": 16,
+    "font": "仿宋_GB2312",
+    "bold": true,
+    "first_line": 0,
+    "align": 0,
+    "before": 0,
+    "after": 0
+   }
+  }
+ },
+ "numbering": {
+  "caption": "global",
+  "formula": "none",
+  "sep": "-"
+ },
+ "toc": {
+  "enabled": true,
+  "levels": "1-3",
+  "title": "目录",
+  "title_style": "目录标题",
+  "after": "first_heading"
+ },
+ "figure_list": {
+  "enabled": true,
+  "title": "插图清单",
+  "title_style": "目录标题"
+ },
+ "table_list": {
+  "enabled": true,
+  "title": "附表清单",
+  "title_style": "目录标题"
+ },
+ "captions": {
+  "enabled": true,
+  "kinds": [
+   "图",
+   "表"
+  ]
+ },
+ "xref": {
+  "enabled": true
+ },
+ "pagebreak": {
+  "before_heading": [
+   1
+  ],
+  "keep_with_next": true
+ },
+ "section": {
+  "orientation": "keep"
+ },
+ "page": {
+  "copy_from_template": true
+ },
+ "_note": "样例：把 template 改成你自己的模板路径。若文档自带样式、只想规范内容层，把 style_from 改成 keep 就不需要模板。"
+}
