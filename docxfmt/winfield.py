@@ -2,11 +2,11 @@
 """
 winfield.py —— 用 Word/WPS COM 重算全部域（独立进程）。
 
-为什么要独立进程：win32com 只装了 anaconda3 那个 python，
-而主流程跑在 managed python 里。拆成子进程，两边各用各的解释器。
+独立进程的原因：win32com 未必装在主流程用的解释器里，
+拆成子进程可以让两边各用各的解释器。
 
-⚠️ 本机 Word COM 被 WPS 完全劫持（连 CLSID 都被接管，Name 伪装成
-   "Microsoft Word"，只有 Path 暴露），只能走 WPS。
+⚠️ 若本机 Word COM 被 WPS 接管（部分环境下连 CLSID 也会被劫持，
+   Name 伪装成 "Microsoft Word"），则实际会走 WPS。
 """
 import io
 import os

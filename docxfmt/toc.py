@@ -11,8 +11,7 @@ toc.py —— 目录 / 图目录 / 表目录（TOC 域）。
    本工具的题注用 `SEQ 图` / `SEQ 表`，所以 \\c "图" / \\c "表" 天然对得上。
    旧式「用样式收集」（`TOC \\t "题注,1"`）也能用，但会把图和表混在一起。
 
-⚠️ 目录标题要**新建独立样式**：居中、无首行缩进、与正文区分开
-   （老板明确要求过：目录/图目录/表目录的标题居中且样式与正文区分）。
+⚠️ 目录标题要**新建独立样式**：居中、无首行缩进、与正文区分开。
 """
 import re
 
@@ -73,8 +72,8 @@ def find_toc_anchor(root, spec):
     if body is None:
         return None, False
     kids = [c for c in body if c.tag == qn("p")]
-    # ⚠️ 目录条目段不能当锚点：它们的文本是「一、总体进展情况8」这种
-    #    带页码的目录行，会把新目录插到目录区里面去
+    # ⚠️ 目录条目段不能当锚点：它们的文本是「标题 + 页码」形式，
+    #    会把新目录插到目录区里面去
     kids = [p for p in kids if not _is_toc_entry(p)]
 
     if spec["toc"].get("after") == "explicit":
@@ -127,7 +126,7 @@ def remove_existing_toc_blocks(root, spec, log=print):
        一个 TOC 域段落里包含**几十行目录条目**（每行自带
        `HYPERLINK \\l _TocXXXX` + `PAGEREF _TocXXXX` 域），
        删了 TOC 域段但留下条目行，那些条目指向的 `_Toc*` 书签已经不存在了
-       → 正文/图表目录里出现「错误！未定义书签。」（踩过）
+       → 正文/图表目录里会出现未定义书签。
        所以要把**整块连续条目**一起删。
 
     两种目录区别对待：

@@ -188,9 +188,7 @@ def cmd_fields(args):
     import subprocess
     src = os.path.abspath(args.infile)
     out = os.path.abspath(args.out or args.infile)
-    # win32com 只装在部分解释器里（常见于 anaconda）。
-    # 找「装了的」而不是「猜路径里的用户名」——硬编码别人机器上的
-    # 用户名既不通用也不该进仓库。
+    # win32com 只装在部分解释器里，逐个探测比猜路径可靠。
     cands = [sys.executable]
     env_py = os.environ.get("DOCXFMT_PYTHON")
     if env_py:

@@ -30,7 +30,7 @@ def unpack(docx, workdir):
 
 
 def pack(workdir, out):
-    """解包目录 -> docx。zipfile 'w' 本就覆盖写，不要先 os.remove（本机会被 safe-delete 拦）。"""
+    """解包目录 -> docx。zipfile 'w' 本就覆盖写，无需先删旧文件。"""
     os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
     n = 0
     try:
@@ -102,8 +102,8 @@ class Docx:
     def paras(self):
         """物化段落列表。
 
-        ⚠️ 必须物化：lxml 每次 iter() 返回**新的代理对象**，id() 不稳定，
-        用 id(element) 做键会全部落空（踩过，必须一次性 list() 再用索引做键）。
+        lxml 每次 iter() 返回**新的代理对象**，id() 不稳定，
+        所以必须一次性 list()，再用索引做键。
         """
         return list(self.root.iter(qn("p")))
 

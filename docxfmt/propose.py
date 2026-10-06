@@ -28,17 +28,12 @@ def build_proposal(doc_root, sid2name, cover_end=None,
     """产出「待拍板清单」。
 
     ⚠️ 必须与 pipeline 走**完全相同的前置处理**（拆段），
-       否则段落序号会错位 —— 踩过：清单里报的段号和渲染时的段号
-       不是同一段，判断全落到别的段上去了。
+       否则两边的段落序号会错位，清单里报的段号对不上渲染时的段号。
     """
     n_split = 0
     if split:
         from .captions import split_caption_paras
         n_split = split_caption_paras(doc_root)
-        if n_split:
-            # 拆段会改序号，必须重建 sid2name 之外的映射不需要，
-            # 但要提示调用方：清单基于拆段后的文档
-            pass
 
     paras = list(doc_root.iter(qn("p")))
     texts = [p_text(p).strip() for p in paras]
@@ -74,9 +69,8 @@ def build_proposal(doc_root, sid2name, cover_end=None,
             else:
                 conf = "仅文本规则"          # 弱信号，值得复核
                 reason = "工具凭编号正则判定，无样式佐证"
-            # ⚠️ 连「有样式佐证」的标题也**要进清单** —— 比如「附表1」这种编号行
-            #    工具判成 heading，但它该不该进目录、该是几级，只有人能拍。
-            #    漏掉它们 = 层级判断里最大的一块盲区。
+            # 连「有样式佐证」的标题也进清单：工具判成 heading 的段，
+            # 该不该进目录、该是几级，仍需调用方确认。
             if reason is None:
                 reason = "已判为标题，请复核层级与是否该进目录"
         elif ntype == "paragraph" and not in_tbl and len(t) <= 40:

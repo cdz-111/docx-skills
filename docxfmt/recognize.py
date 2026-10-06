@@ -108,21 +108,15 @@ def _looks_like_heading(p, txt, sid2name=None):
 
 
 # ------------------------------------------------------------------ 裸标题识别
-# ⛔ 真实缺口（有实测证据）：作者纯手搓，标题既没套 heading 1 样式、
-#    也没设 outlineLvl，文字里还没编号（是「某某技术」这种光文字，
-#    而不是「一、xxx」或「1. xxx」）—— 逐段信号一个都没有，单段判不出来。
+# 有些标题逐段信号一个都没有：不套 heading 样式、无 outlineLvl、文字里也没编号
+# （不是「一、xxx」也不是「1. xxx」）—— 单段判不出来。
 #
-# ⚠️ 试过「短段 + 前后长正文」，**误判率高到不可用**（实测某 4000+ 段文档里
-#    260 个候选，混进表格数字 0.7561、公式编号 (42)、图题注、日期 2025/8/27）。
-#    根因：**长度不是信号** —— 表格单元格天生就短，一样符合「短段」。
-#
-# 现在只保留一条**排他性强**的结构信号：
+# 只保留一条排他性强的结构信号：
 #    「下一段是 N.M 形式的小节标题」-> 说明本段是这一节的**父级标题**。
-# 这条信号几乎不会误判：只有真正的章节起始，后面才会紧跟「1.1 概述」这类小节。
+# 只有真正的章节起始，后面才会紧跟「1.1 概述」这类小节。
 STRUCT_GAP = 3            # 允许隔几个空段
 # 小节号：整数.整数，且**整数部分从 1 起**。
-# ⛔ 绝不能放宽成 `\d+.\d+` —— 表格里的实验数据 `0.7084`、`0.8884`
-#    会被当成「0.70 小节」，实测把 1578 个表格单元格全判成标题（踩过）。
+# ⛔ 不能放宽成 `\d+.\d+` —— 表格里的实验数据 `0.7084` 会被当成「0.70 小节」。
 #    章节号从 1 开始，0.xxxx 是小数，必须排除。
 RE_SUB_NUMBERING = re.compile(
     r"^\s*([1-9]\d?)\s*[.．]\s*([1-9]\d?)\s*[.．]?\s*\S")
@@ -144,7 +138,7 @@ def find_bare_headings(paras, texts):
 
     ⛔ 级别不能一律当 1 级：下一段是「1.1」说明本段是**第 1 章**，
     下一段是「2.3.1」说明本段是**第 2 章的三级标题**。
-    按小节号的段数推层级，否则会把原来的二三级标题全挤掉（实测 heading2 15→0）。
+    按小节号的段数推层级，否则会把原来的二三级标题全挤掉。
     """
     n = len(texts)
     out = {}
@@ -198,13 +192,12 @@ def _is_punct(t):
 def find_cover_end(paras, sid2name):
     """封面区结束位置 = **第一个一级标题**的下标。
 
-    ⛔ 不能按「第一个分节符」算 —— 那样会把第一章开头连同正文一起吞进封面
-       （踩过：p21「一、总体进展情况」被当封面，整章没套样式）。
+    ⛔ 不能按「第一个分节符」算 —— 那样会把第一章开头连同正文一起吞进封面。
     目录条目要优先排除（目录里的「一、xx」跟一级标题同形）。
 
     ⚠️ 一级标题有两种形态：「一、xxx」（中文）和「1. xxx」（阿拉伯数字）。
        只认中文形态的文档（如纯 `1.` / `1.1` 编号的论文），会一个都找不到 →
-       find_cover_end 退化成 len(paras) → **整篇都被当封面跳过**（踩过）。
+       find_cover_end 退化成 len(paras) → **整篇都被当封面跳过**。
     """
     for i, p in enumerate(paras):
         nm = _style_name(p, sid2name) or ""
@@ -212,9 +205,9 @@ def find_cover_end(paras, sid2name):
             continue
         t = p_text(p).strip()
         if not t:
-            continue                       # 空标题段不能当封面终点（踩过：p153 是空的 heading 1）
+            continue                       # 空标题段不能当封面终点
         # ① 已套 heading 1 样式 / outlineLvl=0 —— 最强信号，不管有没有编号文字
-        #    （自动列表编号的文档里标题正文是「引言」这种光秃秃的文字，没有「一、」）
+        #    （自动列表编号的文档里标题文字不带「一、」这类编号）
         if _is_h1(p, nm):
             return i
         # ② 「一、xxx」中文编号
@@ -389,9 +382,8 @@ def classify_one(p, txt, sid2name, cover_end, idx, state, bare=None):
         return "heading", 1
 
     # 裸标题（无样式无编号）—— 结构信号判定。
-    # ⚠️ 只在本段**没有**任何既有标题信号时才用（下面的 heading 样式 / outlineLvl
-    #    / 文本正则都判不到），否则会把已经套了 heading 2 的段抢过来降成 1 级
-    #    （踩过：heading2 从 15 掉到 0）。
+    # 只在本段**没有**任何既有标题信号时才用（下面的 heading 样式 / outlineLvl
+    # / 文本正则都判不到），否则会抢掉已经套了 heading 样式的段。
     if (bare and idx in bare
             and not _has_any_heading_signal(p, txt, sid2name, cover_end, idx)):
         lv, _why = bare[idx]
@@ -417,7 +409,7 @@ def classify_one(p, txt, sid2name, cover_end, idx, state, bare=None):
         state["active3"] = False
         return "heading", 1
     # 「1. 概述」这种阿拉伯数字一级标题：必须字号/加粗明显不同于正文才认，
-    # 否则表格里「1.xxx」的开头说明会被误判（踩过）
+    # 否则表格里「1.xxx」的开头说明会被误判
     if RE_L1_ARABIC.match(txt) and not long_ and _looks_like_heading(
             p, txt, sid2name):
         state["active3"] = False
@@ -438,8 +430,8 @@ def classify_one(p, txt, sid2name, cover_end, idx, state, bare=None):
 def mark_sections(root, skip_keywords):
     """给一级标题打 chapter / front / appendix 标记。
 
-    老板原话：「不是一级标题就是单独一章的，有些仅是格式需求，
-    不是我们的正文部分，自然编号起点也不是他，比如引言部分，以及附录」
+    引言/摘要这类前置部分和附录只算格式需要，不是正文章节，
+    编号不应从它们起算。
     """
     kws = tuple(skip_keywords or ())
     for n in _iter_all(root):

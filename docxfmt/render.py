@@ -72,8 +72,7 @@ def render(root, spec, table, stats=None, dry=False):
         st = table.resolve(want, NAME_ALIASES.get(want))
         if st is None and role in ("table_text", "paragraph", "caption",
                                    "image"):
-            # 目标样式在文档里找不到就退回正文 —— 总得有个样式，
-            # 不能因为模板没定义就几千段全不套（踩过：3273 段表格文字没套上）
+            # 目标样式在文档里找不到就退回正文：不能因为模板没定义就整批不套
             body = spec.style_of("paragraph")
             st = table.resolve(body, NAME_ALIASES.get(body))
             if st is not None:

@@ -213,8 +213,7 @@ def _set_child_val(st, tag, val):
 def transplant(target_root, template_root, style_names):
     """把模板里指定的样式定义移植到目标 styles.xml。
 
-    绝不整体复制 styles.xml —— styleId 体系不同会造成语义错位
-    （模板 caption=6、heading4=5；目标 caption=5、无 heading4 → 语义全乱）。
+    绝不整体复制 styles.xml —— 两边 styleId 体系不同，会造成语义错位。
 
     style_names: 要移植的样式 w:name 列表
     返回 (覆盖数, 新增数, 重映射 basedOn 处数, 缺失列表)

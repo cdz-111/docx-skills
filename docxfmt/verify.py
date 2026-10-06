@@ -105,7 +105,7 @@ def verify_render(docx, template, samples=6, skip=60):
     try:
         import win32com.client as win32
     except ImportError:
-        print("[真机] 本环境没有 win32com，跳过（用 anaconda3 python 跑）")
+        print("[真机] 本环境没有 win32com，跳过（可用 DOCXFMT_PYTHON 指定解释器）")
         return 2
     CLSID = "{000209FF-0000-0000-C000-000000000046}"
     app = None

@@ -7,13 +7,13 @@ captions.py —— 题注自动生成 + 交叉引用 + 公式编号。
     甚至还留着占位符 `图x`。一旦统一编号，原来手写的「表 2」就全错位。
     做成 SEQ + REF 之后，编号怎么变引用都由 Word 自动跟着变。
 
-三条核心经验（都是踩坑换来的）
+三条核心经验
 1. **定位引用要按「作者原编号精确匹配」，不能按「第 N 个」**。
    优先级：本章节原编号==N → 全文原编号==N（多个取最近）→ 退化「第 N 个」
    → 占位符（`图x`）/方位词（`上表`）走就近。
 2. **书签只包「标签+编号」，不包说明文字**，否则 REF 会把整句题注引出来。
 3. **引用正则必须带编号**（`[如见](图|表)\\s*([xX]|\\d+)`），
-   否则「如**图**像、语音」会被误判成引用（实测踩过）。
+   否则「如**图**像、语音」会被误判成引用。
 """
 import copy
 import re
@@ -58,8 +58,7 @@ def _nodes(root):
 def section_map(root):
     """一次遍历算出每个节点的「最近标题」「最近一级标题」。
 
-    ⚠️ 别写成「每个段落做一次全树递归」—— 那是 O(n^2)，
-       2500 段直接卡死（踩过）。
+    ⚠️ 别写成「每个段落做一次全树递归」—— 那是 O(n^2)，大文档会卡死。
     """
     near, chap1, sec_kind = {}, {}, {}
     def rec(n, h, h1, sk):
@@ -153,8 +152,8 @@ def _existing_ref_bk(p):
 def collect_captions(root, paras, kinds=("图", "表")):
     """收集题注：树内 caption 节点 + 补扫「插图下方第一段非空文字」。
 
-    老板原话：「每个图片所在位置的下方都会出现一段文字，那段文字一部分是题注」
-    —— 所以除了树里判为 caption 的，还要扫**每个非表格内插图**的下方 1~2 段。
+    图片下方的第一段文字常常就是题注，所以除了树里判为 caption 的，
+    还要扫**每个非表格内插图**的下方 1~2 段。
     """
     cap_ids = {}
     for n in _nodes(root):
@@ -200,10 +199,9 @@ def collect_captions(root, paras, kinds=("图", "表")):
 def number_captions(caps, scheme="global"):
     """编号 + 分配书签名（书签名一律 ASCII，中文书签名在 WPS 上有翻车风险）。
 
-    ⛔ 分章编号有个陷阱：引言/摘要/附录里的题注**不占章号**
-       （老板原话：「不是一级标题就是单独一章的…自然编号起点也不是他」），
-       它们前面没有 `SEQ 章` 锚点，`SEQ 章 \\c` 取不到值 →
-       图表目录里会显示「错误！未定义书签。」。
+    ⛔ 分章编号有个陷阱：引言/摘要/附录里的题注**不占章号**，
+       它们前面没有 `SEQ 章` 锚点，`SEQ 章 \\c` 取不到值，
+       图表目录里会显示成未定义书签。
        所以 front/appendix 区的题注强制退化成**全局纯序号**。
     """
     g = {}
@@ -231,8 +229,8 @@ def number_captions(caps, scheme="global"):
 def adopt_orphan_bookmarks(caps, paras):
     """空段落上孤零零挂着的 `_Ref*` 书签，作者本意是引用紧随其后的题注。
 
-    源文档里就有这种：空段上挂着 `_Ref240562585`，
-    Word 重算时解析不到 -> 正文直接显示「错误！未定义书签。」
+    有的文档里就有这种：空段上挂着 `_Ref*` 书签，
+    Word 重算时解析不到 -> 正文直接显示未定义书签。
     让下一条题注沿用这个名字，原有交叉引用就自动接上了，一个 REF 都不用改。
     """
     by_idx = {c.idx: c for c in caps}
@@ -284,7 +282,7 @@ def write_caption(p, cap, table, style_name="题注", scheme="global", sep="-",
 
     if scheme == "chapter" and getattr(cap, "scheme", "global") == "chapter":
         # 只有正文章节的题注才带章号。引言/附录的题注前面没有 `SEQ 章` 锚点，
-        # `SEQ 章 \c` 取不到值 → 图表目录里显示「错误！未定义书签。」（踩过）
+        # `SEQ 章 \c` 取不到值，图表目录里会显示成未定义书签
         for r in field_runs(" SEQ 章 \\c ", cached="1", rpr=rpr):
             p.append(r)
         p.append(mk_run(sep, rpr=rpr))
@@ -339,8 +337,8 @@ def convert_formula_numbers(root, paras, table, style_name="公式编号",
     形态 B：编号**独立成段**（整段文本就是 `(30)`）
         → 整段重写（段里没有别的东西可丢）
 
-    ⛔ 铁律：形态 A 绝不能整段重写 —— 真实文档里 oMath 就在同一段里，
-       整段重写会把公式本体删掉（踩过：417 个 OMML 掉到 342）。
+    ⛔ 铁律：形态 A 绝不能整段重写 —— oMath 就在同一段里，
+       整段重写会把公式本体删掉。
     """
     if scheme == "none":
         return 0, 0
@@ -445,7 +443,7 @@ def _replace_range_with_field(p, start, end, bookmark_name, display, rpr=None):
     t0, q0, _ = segs[first]
     tl, ql, _ = segs[last]
     before = (t0.text or "")[:start - q0]
-    after = (tl.text or "")[end - ql:]        # ⚠️ 切片，别写成 s[i]
+    after = (tl.text or "")[end - ql:]        # 切片，不是取单字符
 
     tail = []
     if first == last:

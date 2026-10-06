@@ -47,8 +47,8 @@ python -m docxfmt inspect 输入.docx
 python -m docxfmt propose 输入.docx -o 待拍板.json --report 待拍板.md
 
 # ③ ⭐ 这里停下来，读待拍板.json 逐条判断层级，写进 overrides
-#    格式：{"p1642": {"type":"heading","level":2}, "p1644": {"type":"paragraph"}}
-#    简写：{"p1642": "heading2"}
+#    格式：{"p123": {"type":"heading","level":2}, "p125": {"type":"paragraph"}}
+#    简写：{"p123": "heading2"}
 
 # ④ 把判断喂回去渲染
 python -m docxfmt run 输入.docx -o 输出.docx --spec my.json --overrides 我的判断.json
@@ -84,10 +84,10 @@ python -m docxfmt verify 输出_域重算.docx --template 模板.docx
 
 **几个反复踩到的判断**：
 
-- **表格里的填写项不是标题**：`所属专项：重点专项`、`日期：年月日`、`项目编号` ——
+- **表格里的填写项不是标题**：`所属专项：xxx`、`日期：年月日`、`项目编号` ——
   长得像短标题，其实是表格里等人填的空格。判成正文。
-- **注释不是标题**：`注：总结凝练1~3项典型成果案例` —— 同上。
-- **附表类不要当 L1**：附表挂在「八、其他材料」之下，判 L2 才不会把目录撑爆，
+- **注释不是标题**：`注：请补充说明` —— 同上。
+- **附表类不要当 L1**：附表一般挂在正文最后一个章节之下，判 L2 才不会把目录撑爆，
   也不会让附表占掉正文章节号（正文编号会被打乱）。
 - **表格数据永远不是标题**：`0.7084`、`87.59`、`(42)` —— 再短也不是。
 
@@ -218,7 +218,7 @@ docxfmt/
 ├── captions.py     题注 SEQ + 交叉引用 REF + 公式编号
 ├── pipeline.py     主流水线（顺序有讲究，别改）
 ├── verify.py       三层校验
-└── winfield.py     COM 重算域（独立进程，因为 win32com 只装在 anaconda3）
+└── winfield.py     COM 重算域（独立进程，因 win32com 未必在主解释器里）
 
 spec/                spec 样例
 ├── from-template.json       照模板排
