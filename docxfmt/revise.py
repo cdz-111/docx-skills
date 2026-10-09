@@ -348,14 +348,19 @@ def _try_ws_delete(p, loc, before, after, it, cm, rev, author, date):
     cid = cm.add_comment(author, date,
                          "[%s|%s] %s" % (it["id"], it.get("category", ""),
                                          it.get("basis", "")))
-    last = loc[-1][0]
+    # 先把本条改动在各 run 里产生的节点**全部生成好**（此步不插 S/E/ref），
+    # 同时按文档顺序记录每个 w:del 节点。
+    # 批注区间必须收紧到**本条改动自己的 del 范围**：若像旧实现那样把 S 挂在
+    # 首个受影响 run 前、E 挂在末个受影响 run 后，区间就等于整条定位跨度；
+    # 当同段后一条改动的首个受影响 run 落进该跨度内部（前一条末尾删空格把
+    # run 切成新节点，后一条匹配跨到新节点上）时，就会出现 S_A S_B E_A E_B 交叉。
+    del_nodes = []
+    blocks = []                                        # [(parent, run, [nodes])]
     for (r, a, b) in loc:
         txt = "".join(t.text or "" for t in r.findall(qn("t")))
         rpr = r.find(qn("rPr"))
         parent = r.getparent()
         nodes = []
-        if r is loc[0][0]:
-            nodes.append(_cmark("commentRangeStart", cid))
         if a > 0:
             nodes.append(_run(txt[:a], rpr))
         # 把 [a,b) 切成 连续同类 的片段：保留的用普通 run，空白的用 w:del
@@ -371,17 +376,42 @@ def _try_ws_delete(p, loc, before, after, it, cm, rev, author, date):
             if kind == "keep":
                 nodes.append(_run(s, rpr))
             else:
-                nodes.append(_ins_or_del("del", s, rpr, rev.next(),
-                                         author, date))
+                nd = _ins_or_del("del", s, rpr, rev.next(), author, date)
+                nodes.append(nd)
+                del_nodes.append(nd)
         if b < len(txt):
             nodes.append(_run(txt[b:], rpr))
-        if r is last:
-            nodes.append(_cmark("commentRangeEnd", cid))
-            nodes.append(_comment_ref(cid))
+        blocks.append((parent, r, nodes))
+
+    # 退化：本条改动没产生任何 del 节点（理论上不该发生，因 `_ws_only` 保证
+    # 确有空白要删）——退回原行为（S 在首 run 前、E 在末 run 后），留日志，不抛。
+    degenerate = not del_nodes
+    if degenerate:
+        log("[warn] CR %s：_try_ws_delete 未产生 del 节点，批注区间退回原定位"
+            % it.get("id"))
+        head = blocks[0][2][0]                          # 首块首节点
+        tail = blocks[-1][2][-1]                        # 末块末节点
+
+    # 统一把各块节点写回文档（去掉原 run，按原位置展开）
+    for parent, r, nodes in blocks:
         ii = list(parent).index(r)
         parent.remove(r)
         for k, nd in enumerate(nodes):
             parent.insert(ii + k, nd)
+
+    # 收紧区间：S 紧贴**第一个 del 之前**，E + ref 紧贴**最后一个 del 之后**。
+    # 用元素引用定位（节点此时已在树中），故无需为插入 S 后的下标漂移做补偿。
+    if degenerate:
+        sp, ep = head, tail
+    else:
+        sp, ep = del_nodes[0], del_nodes[-1]
+    sp_parent = sp.getparent()
+    sp_parent.insert(list(sp_parent).index(sp),
+                     _cmark("commentRangeStart", cid))
+    ep_parent = ep.getparent()
+    ep_i = list(ep_parent).index(ep)
+    ep_parent.insert(ep_i + 1, _cmark("commentRangeEnd", cid))
+    ep_parent.insert(ep_i + 2, _comment_ref(cid))
     return True
 
 

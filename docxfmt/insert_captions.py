@@ -94,15 +94,32 @@ def analyze(docx, spec, log=print):
             n_ch += 1
             ch_no[n.meta.get("idx")] = n_ch
 
+    def _chapno(j):
+        """段 j 所属的**一级正文章节**号；不在正文章节内返回 None。"""
+        h1 = sec_of.get(j)
+        while h1 is not None and not (h1.type == "heading" and h1.level == 1):
+            h1 = h1.parent
+        return ch_no.get(h1.meta.get("idx")) if h1 is not None else None
+
+    # chapter 方案的序号是「**章内**序号」，不是全局序号。
+    # 先按章统计**已有**题注数，作为各章的起点（缺图/表按文档序在其上递增）。
+    # 只在 chapter 模式下做，global 路径连这段统计都不跑 → 行为零改动。
+    ch_have = {}
+    if scheme == "chapter":
+        for j, t in enumerate(texts):
+            m = RE_CAP_HEAD.match(t)
+            if not m or m.group(1) not in ("图", "表") or not re.search(r"\d", t):
+                continue
+            cno = _chapno(j)
+            if cno:
+                ch_have[(m.group(1), cno)] = ch_have.get((m.group(1), cno), 0) + 1
+
     def suggest(kind, idx):
         if scheme == "chapter":
-            cur = sec_of.get(idx)
-            h1 = cur
-            while h1 is not None and not (h1.type == "heading" and h1.level == 1):
-                h1 = h1.parent
-            cno = ch_no.get(h1.meta.get("idx")) if h1 is not None else None
-            seq = nextno[kind]
+            cno = _chapno(idx)
             if cno:
+                seq = ch_have.get((kind, cno), 0) + 1
+                ch_have[(kind, cno)] = seq
                 return "%s %d%s%d" % (kind, cno, sep, seq)
         return "%s %d" % (kind, nextno[kind])
 
@@ -130,8 +147,15 @@ def analyze(docx, spec, log=print):
 
     # ---- 表：每个 w:tbl 看上方紧邻段
     n_tab = 0
+    n_cont = 0
     for ti, tbl in enumerate(root.iter(qn("tbl"))):
         prev = tbl.getprevious()
+        # 续表：紧贴在上一个表格之后 —— 同一逻辑表被拆成多个 w:tbl，
+        # 题注只挂在该逻辑表的第一个分段之前，续段不该再出题注。
+        # （ti 仍是真实 w:tbl 索引，continue 不影响执行器用的 where.tbl_index。）
+        if prev is not None and prev.tag == qn("tbl"):
+            n_cont += 1
+            continue
         ok = False
         if prev is not None and prev.tag == qn("p"):
             if RE_CAP_HEAD.match(p_text(prev).strip()) and \
@@ -164,8 +188,8 @@ def analyze(docx, spec, log=print):
 
     import shutil
     shutil.rmtree(workdir, ignore_errors=True)
-    log("[题注] 图缺题注 %d 个；表缺题注 %d 个（方案 %s，分隔符 %r）"
-        % (n_fig, n_tab, scheme, sep))
+    log("[题注] 图缺题注 %d 个；表缺题注 %d 个（跳过续表 %d 个；方案 %s，分隔符 %r）"
+        % (n_fig, n_tab, n_cont, scheme, sep))
     return b.build()
 
 
