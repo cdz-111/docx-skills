@@ -37,19 +37,31 @@ def _out(s):
 
 
 def _load_requirement(spec):
-    """style_from="requirement"：从文字规范 json 读样式名映射。"""
-    path = spec["source"].get("requirement")
-    if not path or not os.path.exists(path):
-        raise SystemExit("[spec] style_from=requirement 但没给 requirement 路径：%s"
-                         % path)
+    """style_from="requirement"：从文字规范 json 读样式名映射。
+
+    requirement 为空 → 用内置默认模板 spec/default.json（用户没给模板时的兜底）。
+    """
+    from .spec import DEFAULT_REQUIREMENT
+    path = spec["source"].get("requirement") or DEFAULT_REQUIREMENT
+    if not os.path.exists(path):
+        raise SystemExit("[spec] 找不到文字规范文件：%s" % path)
     with open(path, "r", encoding="utf-8") as f:
         req = json.load(f)
-    m = req.get("styles") or req.get("style_map") or {}
+    st = req.get("styles") or {}
+    m = st.get("map") or req.get("style_map") or {}
     if m:
         spec["styles"]["map"] = m
-    g = req.get("geometry")
-    if g:
-        spec["styles"]["geometry"] = g
+    for key in ("new_styles", "geometry"):
+        v = st.get(key) or req.get(key)
+        if v:
+            spec["styles"][key] = v
+    # 默认模板里其余声明式字段（numbering/toc/tables/spacing/lint…）一并带入
+    for key in ("numbering", "toc", "figure_list", "table_list", "captions",
+                "xref", "pagebreak", "section", "tables", "spacing", "lint"):
+        if key in req and req[key]:
+            spec.setdefault(key, {})
+            if isinstance(req[key], dict):
+                spec[key] = {**spec[key], **req[key]}
     return spec
 
 
@@ -116,7 +128,10 @@ def run(src, out, spec, workdir=None, tree_json=None, tree_txt=None,
         if n:
             log("[styles] 标题样式首行缩进兜底 %d 个" % n)
     elif style_from == "requirement":
-        log("[styles] 按文字规范排：%s" % spec["source"].get("requirement"))
+        src = spec["source"].get("requirement")
+        log("[styles] 按文字规范排：%s" % (src or "spec/default.json（内置默认模板）"))
+    elif style_from == "keep":
+        log("[styles] style_from=keep：只做内容层，不动样式")
 
     table = StyleTable(doc.sty.getroot())
     made = render.create_new_styles(spec, table)

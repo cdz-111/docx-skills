@@ -48,15 +48,27 @@ spec.py —— 排版规范：工具的输入契约。
     section.landscape_nodes  哪些节点要放横向节（正则匹配标题文字）
     section.first_page_diff  首页不同（页眉页脚）
     section.odd_even         奇偶页不同
+
+    tables.border_style      "three_line"(数据表三线) / "full_grid"(长文本表全框)
+                             / "auto"(按内容自动判定，默认)
+    spacing.normalize_cjk_latin  中文↔数字/英文/公式 之间的空格要不要归一（去空格）
+    spacing.keep_caption_space   题注与域缓存保持「图 1」形态，不参与去空格
+    lint.scope               正文校验的范围："body" = 只扫正文
+    lint.exclude             正文校验要排除的部分：formula(公式段) / appendix(附录)
 """
 import json
 import os
 
+# 默认模板（用户没给模板时用它）。相对 skill 根目录定位。
+DEFAULT_REQUIREMENT = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "spec", "default.json")
+
 DEFAULTS = {
     "source": {
-        "style_from": "template",
+        "style_from": "requirement",
         "template": None,
-        "requirement": None,
+        "requirement": None,          # None = 用 spec/default.json 这份默认模板
     },
     "styles": {
         "map": {
@@ -122,6 +134,27 @@ DEFAULTS = {
     "page": {
         "copy_from_template": True,
     },
+    # ---- 表格美化（polish 读；见 references/table-style.md）
+    "tables": {
+        "border_style": "auto",          # auto | three_line | full_grid
+        "three_line_data_table": True,   # 数据表 -> 三线表
+        "full_grid_text_table": True,    # 长文本表 -> 全框
+        "text_table_min_chars": 60,      # 单格文本超过这么多字 -> 判为长文本表
+        "max_width_percent": 100,
+        "repeat_header_row": True,
+    },
+    # ---- 空格规则（polish 读；见 references/space-rules.md）
+    "spacing": {
+        "normalize_cjk_latin": True,     # 去掉 中文↔数字/英文/公式 之间的空格
+        "keep_caption_space": True,      # 题注/域缓存保持「图 1」不参与
+    },
+    # ---- 正文校验范围（lint 读）
+    "lint": {
+        "scope": "body",                 # body = 只扫正文
+        "exclude": ["formula", "appendix"],
+        "punctuation_fullwidth": True,
+        "no_space_after_punct": True,
+    },
 }
 
 
@@ -171,6 +204,14 @@ class Spec(dict):
 
 def write_sample(path, mode="template"):
     """写一份带注释的 spec 样例，让用户照着改。"""
+    if mode == "default":
+        # 把内置默认模板抄一份出去，供用户手改后再喂回来
+        with open(DEFAULT_REQUIREMENT, "r", encoding="utf-8") as f:
+            src = f.read()
+        os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            f.write(src)
+        return path
     if mode == "template":
         s = {
             "source": {"style_from": "template",

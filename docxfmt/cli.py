@@ -42,35 +42,39 @@ def _kvlist(s):
 
 
 def build_spec(args):
-    """命令行 -> spec dict。--spec 提供基底，快捷选项在其上覆盖。"""
+    """命令行 -> spec dict。--spec 提供基底，快捷选项在其上覆盖。
+
+    用 getattr 兜底：styles / lint 等命令没有 run 的全套参数。
+    """
+    g = lambda k, d=None: getattr(args, k, d)      # noqa: E731
     base = {}
-    if args.spec:
-        with open(args.spec, "r", encoding="utf-8") as f:
+    if g("spec"):
+        with open(g("spec"), "r", encoding="utf-8") as f:
             base = json.load(f)
-    if args.template:
+    if g("template"):
         base.setdefault("source", {})
         base["source"]["style_from"] = "template"
-        base["source"]["template"] = args.template
-    if args.requirement:
+        base["source"]["template"] = g("template")
+    if g("requirement"):
         base.setdefault("source", {})
         base["source"]["style_from"] = "requirement"
-        base["source"]["requirement"] = args.requirement
-    if args.caption_scheme:
-        base.setdefault("numbering", {})["caption"] = args.caption_scheme
-    if args.formula_scheme:
-        base.setdefault("numbering", {})["formula"] = args.formula_scheme
-    if args.number_sep:
-        base.setdefault("numbering", {})["sep"] = args.number_sep
-    if args.pagebreak_levels is not None:
+        base["source"]["requirement"] = g("requirement")
+    if g("caption_scheme"):
+        base.setdefault("numbering", {})["caption"] = g("caption_scheme")
+    if g("formula_scheme"):
+        base.setdefault("numbering", {})["formula"] = g("formula_scheme")
+    if g("number_sep"):
+        base.setdefault("numbering", {})["sep"] = g("number_sep")
+    if g("pagebreak_levels") is not None:
         base.setdefault("pagebreak", {})["before_heading"] = \
-            [int(x) for x in _kvlist(args.pagebreak_levels)]
-    for key, val in (("toc", args.toc), ("figure_list", args.figure_list),
-                     ("table_list", args.table_list),
-                     ("captions", args.captions), ("xref", args.xref)):
+            [int(x) for x in _kvlist(g("pagebreak_levels"))]
+    for key, val in (("toc", g("toc")), ("figure_list", g("figure_list")),
+                     ("table_list", g("table_list")),
+                     ("captions", g("captions")), ("xref", g("xref"))):
         if val is not None:
             base.setdefault(key, {})["enabled"] = val
-    if args.toc_levels:
-        base.setdefault("toc", {})["levels"] = args.toc_levels
+    if g("toc_levels"):
+        base.setdefault("toc", {})["levels"] = g("toc_levels")
     return base
 
 
@@ -226,6 +230,265 @@ def cmd_verify(args):
     return verify.main(args)
 
 
+# ------------------------------------------------------------------ 新命令
+def _spec_for(args):
+    """给只读类命令（styles / lint）构造生效 spec（含默认模板兜底）。"""
+    from .pipeline import _load_requirement
+    from .spec import Spec
+    sp = Spec(build_spec(args))
+    if sp["source"].get("style_from") == "requirement":
+        sp = _load_requirement(sp)
+    return sp
+
+
+def _stem(path):
+    return os.path.splitext(os.path.basename(path))[0]
+
+
+def _sibling(path, suffix):
+    return os.path.join(os.path.dirname(os.path.abspath(path)),
+                        _stem(path) + "_" + suffix)
+
+
+def cmd_styles(args):
+    """S1 样式确认单：逐部分列出目标样式（可手改），只出单不套用。"""
+    from . import crs as CRS
+    from .confirm import collect, render_html
+    spec = _spec_for(args)
+    inv, rows, resolved = collect(args.infile, spec)
+    hp = args.html or _sibling(args.infile, "样式确认单.html")
+    jp = args.out or _sibling(args.infile, "样式确认单.json")
+    render_html(inv, rows, resolved, args.infile, hp)
+    with open(jp, "w", encoding="utf-8") as f:
+        import json as _j
+        _j.dump(resolved, f, ensure_ascii=False, indent=2)
+    miss = [r["label"] for r in rows if r["missing"]]
+    alias = ["%s→%s" % (r["target"], r["resolved_as"]) for r in rows
+             if r.get("resolved_as") and r["resolved_as"] != r["target"]]
+    print("=" * 70)
+    print("样式确认单：%s" % os.path.basename(args.infile))
+    print("=" * 70)
+    print("段落 %d ；表格 %d ；图片 %d ；公式 %d ；题注 %d ；批注 %d"
+          % (inv.get("paragraphs", 0), inv.get("tables", 0),
+             inv.get("drawings", 0), inv.get("math", 0),
+             inv.get("captions", 0), inv.get("comment_count", 0)))
+    print("目标样式走别名命中的：%s" % ("、".join(alias) if alias else "无"))
+    print("目标样式在文档里找不到的部分：%s"
+          % ("、".join(miss) if miss else "无"))
+    print("文档现有样式：%s" % "、".join(sorted(inv.get("style_names", []))[:15]))
+    print()
+    print("-> %s" % hp)
+    print("-> %s（确认/手改后当 --spec 喂回 run）" % jp)
+    return 0
+
+
+def cmd_lint(args):
+    """S5 正文校验：只出改动事项单，绝不改文档。"""
+    from . import crs as CRS
+    from .lint import analyze
+    spec = _spec_for(args)
+    c = analyze(args.infile, spec)
+    jp = args.out or _sibling(args.infile, "改动事项.json")
+    hp = args.html or _sibling(args.infile, "改动事项.html")
+    CRS.write_json(c, jp)
+    CRS.render_html(c, hp)
+    s = CRS.summarize(c)
+    print("=" * 70)
+    print("正文校验（只出清单，不改文档）：%s" % os.path.basename(args.infile))
+    print("=" * 70)
+    print("共 %d 项　分档 %s" % (s["total"], s["by_grade"]))
+    print()
+    print("-> %s" % hp)
+    print("-> %s" % jp)
+    print()
+    print("下一步：勾选后执行 —— python -m docxfmt revise <文档> --crs %s" % jp)
+    return 0
+
+
+def cmd_revise(args):
+    """S6 修订落盘：只执行已批准的项，以修订模式写入并逐条批注。"""
+    from . import revise as RV
+    r = RV.apply(args.infile, args.crs, approved_path=args.approved,
+                 out=args.out, author=args.author, dry=args.dry)
+    rp = args.receipt or _sibling(args.infile, "改动回执.md")
+    RV.write_receipt(r, rp)
+    print("-> 回执 %s" % rp)
+    if r.get("output"):
+        print("-> 产物 %s" % r["output"])
+    return 0 if r["summary"]["failed"] == 0 else 1
+
+
+def _find_pywin32():
+    """找一个装了 win32com 的解释器（COM 类功能都用它）。"""
+    import subprocess
+    cands = []
+    env_py = os.environ.get("DOCXFMT_PYTHON")
+    if env_py:
+        cands.append(env_py)
+    cands.append(sys.executable)
+    for base in ("anaconda3", "Anaconda3", "miniconda3", "Miniconda3"):
+        cands.append(os.path.expanduser("~") + "\\" + base + "\\python.exe")
+    for py in cands:
+        if not py or not os.path.exists(py):
+            continue
+        try:
+            r = subprocess.run([py, "-c", "import win32com.client"],
+                               capture_output=True, timeout=25)
+        except Exception:                            # noqa: BLE001
+            continue
+        if r.returncode == 0:
+            return py
+    return None
+
+
+def _render_pages(docx, pages_out=None, limit=0, quick=False):
+    """调 paginate.py 做渲染级量页，返回结果 dict（失败返回 None）。"""
+    import subprocess
+    py = _find_pywin32()
+    if not py:
+        print("[polish] 没找到装了 win32com 的 Python → 渲染级检查降级为跳过。")
+        print("         可设 DOCXFMT_PYTHON=D:\\path\\to\\python.exe 指定。")
+        return None
+    here = os.path.dirname(os.path.abspath(__file__))
+    runner = os.path.join(here, "paginate.py")
+    want = pages_out or _sibling(docx, "量页.json")
+    cmd = [py, runner, os.path.abspath(docx), "-o", want]
+    if limit:
+        cmd += ["--limit", str(limit)]
+    if quick:
+        cmd += ["--quick"]
+    print("[polish] 用 %s 量页 …" % os.path.basename(py))
+    r = subprocess.run(cmd, capture_output=True, text=True,
+                       encoding="utf-8", errors="replace")
+    if r.returncode != 0:
+        print("[polish] 量页失败：\n%s\n%s" % (r.stdout or "", r.stderr or ""))
+        return None
+    for line in (r.stdout or "").splitlines()[-4:]:
+        print("          " + line)
+    with open(want, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def cmd_polish(args):
+    """S4 排版体检：六条硬要求，只出清单；--apply 执行结构类改动。"""
+    from . import crs as CRS
+    from . import polish as PL
+    spec = _spec_for(args)
+
+    if getattr(args, "apply", False):
+        if not args.crs:
+            print("[polish] --apply 需要 --crs 指定改动事项单")
+            return 2
+        r = PL.apply(args.infile, args.crs, approved_path=args.approved,
+                     out=args.out_docx, spec=spec, dry=args.dry)
+        rp = args.receipt or _sibling(args.infile, "排版回执.md")
+        from .applykit import write_receipt
+        write_receipt(r, rp, title="排版改动回执")
+        print("-> 回执 %s" % rp)
+        if r.get("output"):
+            print("-> 产物 %s" % r["output"])
+        return 0 if r["summary"]["failed"] == 0 else 1
+
+    pages = None
+    if args.pages:
+        with open(args.pages, "r", encoding="utf-8") as f:
+            pages = json.load(f)
+    elif not args.no_render:
+        pages = _render_pages(args.infile)
+
+    c = PL.analyze(args.infile, spec, pages)
+    jp = args.out or _sibling(args.infile, "排版事项.json")
+    hp = args.html or _sibling(args.infile, "排版事项.html")
+    CRS.write_json(c, jp)
+    CRS.render_html(c, hp)
+    s = CRS.summarize(c)
+    print()
+    print("共 %d 项　分档 %s" % (s["total"], s["by_grade"]))
+    print("-> %s" % hp)
+    print("-> %s" % jp)
+    print()
+    print("下一步：勾选后执行（分页/表格边框类）——")
+    print("  python -m docxfmt polish <文档> --apply --crs %s" % jp)
+    return 0
+
+
+def cmd_captions(args):
+    """S3 题注补插：找「该有题注但没有」的图/表，只出清单。"""
+    from . import crs as CRS
+    from . import insert_captions as IC
+    spec = _spec_for(args)
+
+    if getattr(args, "apply", False):
+        if not args.crs:
+            print("[captions] --apply 需要 --crs")
+            return 2
+        r = IC.apply(args.infile, args.crs, approved_path=args.approved,
+                     out=args.out_docx, spec=spec, dry=args.dry)
+        rp = args.receipt or _sibling(args.infile, "题注回执.md")
+        from .applykit import write_receipt
+        write_receipt(r, rp, title="题注补插回执")
+        print("-> 回执 %s" % rp)
+        if r.get("output"):
+            print("-> 产物 %s" % r["output"])
+        return 0 if r["summary"]["failed"] == 0 else 1
+
+    c = IC.analyze(args.infile, spec)
+    jp = args.out or _sibling(args.infile, "题注事项.json")
+    hp = args.html or _sibling(args.infile, "题注事项.html")
+    CRS.write_json(c, jp)
+    CRS.render_html(c, hp)
+    s = CRS.summarize(c)
+    print()
+    print("共 %d 项　分档 %s" % (s["total"], s["by_grade"]))
+    print("-> %s" % hp)
+    print("-> %s" % jp)
+    return 0
+
+
+def cmd_facts(args):
+    """S5b 事实核查：抽原子断言 →（联网核）→ 落 CRS / 出核查表。"""
+    from . import factcheck as FC
+    res = FC.extract(args.infile, spec=_spec_for(args))
+    jp = args.out or _sibling(args.infile, "待核查事实.json")
+    mp = args.md or _sibling(args.infile, "事实核查表.md")
+
+    if args.verdicts:
+        v = FC.load_json(args.verdicts)
+        n = FC.apply_verdicts(res["claims"], v)
+        print("[facts] 回填判定 %d 条" % n)
+
+    FC.save_json(res, jp)
+    import time as _t
+    FC.render_md(res["claims"], mp, doc_name=os.path.basename(args.infile),
+                 date_str=args.date or _t.strftime("%Y-%m-%d"))
+    print("-> %s" % mp)
+    print("-> %s" % jp)
+
+    if args.to_crs:
+        c, n = FC.to_crs(args.infile, res["claims"], spec=_spec_for(args))
+        from . import crs as CRS
+        CRS.write_json(c, args.to_crs)
+        hp = args.html or os.path.splitext(args.to_crs)[0] + ".html"
+        CRS.render_html(c, hp)
+        s = CRS.summarize(c)
+        print("-> 事实核查 CRS %s（%d 项，分档 %s）"
+              % (args.to_crs, n, s["by_grade"]))
+        print("-> %s" % hp)
+    else:
+        print()
+        print("下一步：逐条联网核查 → 写 verdicts.json → 回填：")
+        print("   python -m docxfmt facts <文档> --verdicts verdicts.json "
+              "--to-crs <文档>_事实核查.json")
+    return 0
+
+
+def _add_common_spec(sp):
+    sp.add_argument("--spec", help="完整规范 json（优先）")
+    sp.add_argument("--template", help="参考模板 docx")
+    sp.add_argument("--requirement", help="文字规范 json")
+    return sp
+
+
 def main(argv=None):
     sys.stdout = _ensure_stdout()
     ap = argparse.ArgumentParser(prog="docxfmt",
@@ -283,9 +546,83 @@ def main(argv=None):
     # spec
     s = sub.add_parser("spec", help="生成 spec 样例")
     s.add_argument("--init", required=True, help="写出的 json 路径")
-    s.add_argument("--mode", choices=["template", "requirement"],
+    s.add_argument("--mode", choices=["default", "template", "requirement"],
                    default="template")
     s.set_defaults(func=cmd_spec)
+
+    # styles（样式确认单）
+    sg = sub.add_parser("styles", help="S1 样式确认单（只出单，不套用）")
+    sg.add_argument("infile")
+    sg.add_argument("--spec", help="完整规范 json（优先）")
+    sg.add_argument("--template", help="参考模板 docx")
+    sg.add_argument("--requirement", help="文字规范 json")
+    sg.add_argument("--out", help="导出的可编辑 spec json 路径")
+    sg.add_argument("--html", help="HTML 确认页路径")
+    sg.set_defaults(func=cmd_styles)
+
+    # lint（正文校验）
+    lt = sub.add_parser("lint", help="S5 正文校验（只出改动事项单）")
+    lt.add_argument("infile")
+    lt.add_argument("--spec", help="完整规范 json（优先）")
+    lt.add_argument("--template", help="参考模板 docx")
+    lt.add_argument("--requirement", help="文字规范 json")
+    lt.add_argument("--out", help="CRS json 路径")
+    lt.add_argument("--html", help="CRS 可勾选页路径")
+    lt.set_defaults(func=cmd_lint)
+
+    # revise（修订模式 + 批注）
+    rv = sub.add_parser("revise", help="S6 修订落盘（只改已批准的项）")
+    rv.add_argument("infile")
+    rv.add_argument("--crs", required=True, help="改动事项单 json")
+    rv.add_argument("--approved", help="_approved.json（覆盖 decision）")
+    rv.add_argument("-o", "--out", help="输出 docx（默认 <名>_修订.docx）")
+    rv.add_argument("--receipt", help="改动回执 md 路径")
+    rv.add_argument("--author", default="docx-format 校对", help="修订/批注作者")
+    rv.add_argument("--dry", action="store_true", help="干跑，不落盘")
+    rv.set_defaults(func=cmd_revise)
+
+    # polish（S4 六条硬要求）
+    po = sub.add_parser("polish", help="S4 排版体检（六条硬要求，只出单）")
+    po.add_argument("infile")
+    _add_common_spec(po)
+    po.add_argument("--pages", help="paginate.py 的量页 json（不给则自动量）")
+    po.add_argument("--no-render", action="store_true",
+                    help="不量页，只做静态检查（①⑥）")
+    po.add_argument("--out", help="CRS json 路径")
+    po.add_argument("--html", help="CRS 可勾选页路径")
+    po.add_argument("--apply", action="store_true", help="执行结构类改动")
+    po.add_argument("--crs", help="--apply 时的改动事项单 json")
+    po.add_argument("--approved", help="_approved.json")
+    po.add_argument("--out-docx", dest="out_docx", help="排版产物路径")
+    po.add_argument("--receipt", help="回执 md 路径")
+    po.add_argument("--dry", action="store_true")
+    po.set_defaults(func=cmd_polish)
+
+    # captions（S3 题注补插）
+    cp = sub.add_parser("captions", help="S3 题注补插（只出单）")
+    cp.add_argument("infile")
+    _add_common_spec(cp)
+    cp.add_argument("--out", help="CRS json 路径")
+    cp.add_argument("--html", help="CRS 可勾选页路径")
+    cp.add_argument("--apply", action="store_true")
+    cp.add_argument("--crs", help="--apply 时的改动事项单 json")
+    cp.add_argument("--approved", help="_approved.json")
+    cp.add_argument("--out-docx", dest="out_docx", help="产物路径")
+    cp.add_argument("--receipt", help="回执 md 路径")
+    cp.add_argument("--dry", action="store_true")
+    cp.set_defaults(func=cmd_captions)
+
+    # facts（S5b 事实核查抽取）
+    fa = sub.add_parser("facts", help="S5b 事实核查：抽原子断言 → 落 CRS")
+    fa.add_argument("infile")
+    _add_common_spec(fa)
+    fa.add_argument("--out", help="待核查事实 json 路径")
+    fa.add_argument("--md", help="人读核查表 md 路径")
+    fa.add_argument("--verdicts", help="判定回填 json")
+    fa.add_argument("--to-crs", dest="to_crs", help="产出事实核查 CRS json")
+    fa.add_argument("--html", help="CRS 可勾选页路径")
+    fa.add_argument("--date", help="核查日期（默认今天）")
+    fa.set_defaults(func=cmd_facts)
 
     # fields
     f = sub.add_parser("fields", help="重算全部域")

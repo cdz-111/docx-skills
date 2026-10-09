@@ -432,15 +432,21 @@ def mark_sections(root, skip_keywords):
 
     引言/摘要这类前置部分和附录只算格式需要，不是正文章节，
     编号不应从它们起算。
+
+    ⛔ 判定顺序：**先判附录，再判前置词**。
+       `skip_keywords` 里本来就有「附录」两个字（为了让附录不占章号），
+       如果先做关键词匹配，附录会被打成 `front` 而不是 `appendix` ——
+       后果是 `lint` 的 `exclude: [appendix]` 与事实核查的「附录起自哪段」
+       全部失效，附录内容被当成正文扫。
     """
     kws = tuple(skip_keywords or ())
     for n in _iter_all(root):
         if n.type == "heading" and n.level == 1:
             t = re.sub(r"\s+", "", n.text or "")
-            if any(k in t for k in kws):
-                n.sec_kind = "front"
-            elif RE_APPENDIX.match(n.text or ""):
+            if RE_APPENDIX.match(n.text or ""):
                 n.sec_kind = "appendix"
+            elif any(k in t for k in kws):
+                n.sec_kind = "front"
             else:
                 n.sec_kind = "chapter"
     return root
