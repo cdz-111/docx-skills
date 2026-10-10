@@ -1,0 +1,98 @@
+{
+ "source": {
+  "style_from": "keep"
+ },
+ "styles": {
+  "map": {
+   "paragraph": "正文",
+   "heading": {
+    "1": "标题 1",
+    "2": "标题 2",
+    "3": "标题 3",
+    "4": "标题 4"
+   },
+   "caption": "题注",
+   "image": "图片",
+   "table_text": "表格表头文字",
+   "toc_title": "目录标题",
+   "toc": {
+    "1": "目录 1",
+    "2": "目录 2",
+    "3": "目录 3"
+   },
+   "appendix": "附录",
+   "formula_number": "公式编号"
+  },
+  "new_styles": {
+   "目录标题": {
+    "align": "center",
+    "first_line": 0,
+    "based_on": "正文",
+    "size": 16,
+    "font": "黑体",
+    "bold": true
+   },
+   "图片": {
+    "align": "center",
+    "first_line": 0,
+    "based_on": "正文"
+   },
+   "公式编号": {
+    "align": "right",
+    "first_line": 0,
+    "based_on": "正文"
+   }
+  }
+ },
+ "numbering": {
+  "caption": "chapter",
+  "formula": "chapter",
+  "sep": "-"
+ },
+ "toc": {
+  "enabled": true,
+  "levels": "1-3",
+  "title": "目录",
+  "after": "first_heading"
+ },
+ "figure_list": {
+  "enabled": true,
+  "title": "插图清单"
+ },
+ "table_list": {
+  "enabled": true,
+  "title": "附表清单"
+ },
+ "captions": {
+  "enabled": true,
+  "kinds": [
+   "图",
+   "表"
+  ]
+ },
+ "xref": {
+  "enabled": true
+ },
+ "pagebreak": {
+  "before_heading": [
+   1
+  ],
+  "keep_with_next": true
+ },
+ "section": {
+  "insert": [],
+  "orientation": "keep"
+ },
+ "page": {
+  "margin": {
+   "top": 1440,
+   "bottom": 1440,
+   "left": 1701,
+   "right": 1701,
+   "header": 851,
+   "footer": 992,
+   "gutter": 0
+  }
+ },
+ "_note": "样例：文档自带样式（style_from=keep），启用分章编号 + 公式自动编号。分章编号依赖一级标题可用，「引言/摘要/附录」等不占章号。"
+}

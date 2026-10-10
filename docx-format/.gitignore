@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 工具运行时的中间产物与输出（绝不入库）
+_unpacked/
+_inspect/
+_propose/
+*_unpacked/
+待拍板*.json
+待拍板*.md
+*_域重算.docx
+我的判断.json
+*.docx
+!testdata/*.docx

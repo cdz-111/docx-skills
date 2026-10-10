@@ -1,0 +1,108 @@
+{
+  "name": "default_technical_doc",
+  "display_name": "默认技术文档模板",
+
+  "styles": {
+    "map": {
+      "paragraph": "正文",
+      "heading": {
+        "1": "标题 1",
+        "2": "标题 2",
+        "3": "标题 3",
+        "4": "标题 4",
+        "5": "标题 5",
+        "6": "标题 6"
+      },
+      "caption": "题注",
+      "image": "图片",
+      "table_text": "表格表头文字",
+      "toc_title": "目录标题",
+      "toc": { "1": "目录 1", "2": "目录 2", "3": "目录 3" },
+      "appendix": "附录",
+      "formula_number": "公式编号",
+      "header": "页眉",
+      "footer": "页脚"
+    },
+
+    "new_styles": {
+      "图片": { "based_on": "正文", "align": "center", "first_line": 0 },
+      "目录标题": {
+        "based_on": "正文", "align": "center", "first_line": 0,
+        "size": 16, "font": "黑体", "bold": true
+      },
+      "表格表头文字": {
+        "based_on": "正文", "align": "center", "first_line": 0, "bold": true
+      },
+      "表格文字": { "based_on": "正文", "first_line": 0 },
+      "公式编号": { "based_on": "正文", "first_line": 0 }
+    },
+
+    "geometry": {
+      "正文": {
+        "size": 12, "font": "宋体", "align": "both",
+        "first_line": 24, "before": 0, "after": 0, "line": "1.5x"
+      },
+      "标题 1": {
+        "size": 16, "font": "黑体", "bold": true, "align": "left",
+        "first_line": 0, "before": 17, "after": 16.5, "line": "1.5x",
+        "keep_next": true
+      },
+      "标题 2": {
+        "size": 14, "font": "黑体", "bold": true, "align": "left",
+        "first_line": 0, "before": 13, "after": 13, "line": "1.5x",
+        "keep_next": true
+      },
+      "标题 3": {
+        "size": 12, "font": "黑体", "bold": true, "align": "left",
+        "first_line": 0, "before": 13, "after": 13, "line": "1.5x",
+        "keep_next": true
+      },
+      "题注": {
+        "size": 10.5, "font": "宋体", "align": "center",
+        "first_line": 0, "before": 6, "after": 6
+      },
+      "图片": { "align": "center", "first_line": 0 },
+      "表格文字": { "first_line": 0, "align": "center" }
+    }
+  },
+
+  "numbering": {
+    "caption": "global",
+    "formula": "none",
+    "sep": "-",
+    "skip_keywords": [
+      "引言", "前言", "绪论", "序言", "摘要", "ABSTRACT",
+      "目录", "插图清单", "附表清单", "图目录", "表目录",
+      "参考文献", "致谢", "附录"
+    ]
+  },
+
+  "toc": { "enabled": true, "levels": "1-3", "title": "目录", "after": "first_heading" },
+  "figure_list": { "enabled": true, "title": "插图清单" },
+  "table_list": { "enabled": true, "title": "附表清单" },
+  "captions": { "enabled": true, "kinds": ["图", "表"] },
+  "xref": { "enabled": true },
+  "pagebreak": { "before_heading": [1], "keep_with_next": true },
+  "section": { "insert": [], "orientation": "keep" },
+
+  "tables": {
+    "border_style": "auto",
+    "three_line_data_table": true,
+    "full_grid_text_table": true,
+    "text_table_min_chars": 60,
+    "max_width_percent": 100,
+    "repeat_header_row": true
+  },
+
+  "spacing": {
+    "normalize_cjk_latin": true,
+    "keep_caption_space": true
+  },
+
+  "lint": {
+    "scope": "body",
+    "exclude": ["formula", "appendix"],
+    "punctuation_fullwidth": true,
+    "no_space_after_punct": true
+  }
+}
