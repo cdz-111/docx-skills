@@ -10,6 +10,8 @@
 
 /*
 !/.gitignore
+!/README.md
+!/LICENSE
 !/docx-*/
 
 # 顶层工具文件（_bm_skillid_migration.json / .disable_to_model_invocation_migration.json
