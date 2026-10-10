@@ -1,0 +1,24 @@
+# ============================================================
+# docx skill 集合 —— 白名单式 .gitignore
+# ------------------------------------------------------------
+# 本目录是 WorkBuddy 的用户级 skills 根目录，住着 60+ 个互不相关的 skill。
+# 本仓库只纳管 docx 系列 skill，其余一律不跟踪。
+#
+# 机制：先 /* 忽略顶层一切，再用 !/docx-*/ 反选。
+#       前缀式反选 ⇒ 将来新增 docx-xxx skill 会自动纳入，无需改本文件。
+# ============================================================
+
+/*
+!/.gitignore
+!/docx-*/
+
+# 顶层工具文件（_bm_skillid_migration.json / .disable_to_model_invocation_migration.json
+# / .model_invocation_to_override_migration.json）已被上面的 /* 忽略，无需额外规则。
+# 切勿对它们写 ! 反选 —— 那会把工具文件纳入仓库。
+
+# Python 缓存与构建产物（四个 skill 内均可能生成）
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
