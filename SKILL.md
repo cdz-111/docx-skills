@@ -621,7 +621,7 @@ python -m docxfmt facts 输入.docx --verdicts verdicts.json \
 | Skill | 层 | 职责 |
 |---|---|---|
 | **本 skill** | **权威实现层** | spec 真源 + `run`/`styles`/`lint`/`revise` + CRS 唯一实现 |
-| `docx-numbering-xref-pipeline` | 编排与门禁层（编号域） | 5 阶段编号/引用治理，每步断言 + `verify_all.py` 11 项验收 |
+| `docx-numbering-xref-pipeline` | 编排与门禁层（编号域） | 5 阶段编号/引用治理，每步断言 + `verify_all.py` 13 项验收（12/13 需 `--base`，`--stage s6` 记 EXPECT） |
 | `docx-formula-image-to-omml` | 工具实现层 | 图片公式→OMML、题注/引用/清单/字符级修复脚本（§9–§17 技术细节） |
 | `docx-unify-pipeline` | **总编排层** | 七阶段 S0~S6 端到端串起上面三者，统一 CRS 与门禁 |
 
@@ -632,7 +632,7 @@ python -m docxfmt facts 输入.docx --verdicts verdicts.json \
 ```
 docxfmt/
 ├── __main__.py     python -m docxfmt 入口
-├── cli.py          命令行（run / styles / lint / revise / propose / inspect / spec / fields / verify）
+├── cli.py          命令行（run / styles / lint / revise / propose / inspect / spec / fields / verify / polish / captions / facts）
 ├── spec.py         规范定义（工具的输入契约）+ DEFAULT_REQUIREMENT
 ├── docxio.py       解包/打包/OOXML 构造
 ├── styles.py       样式表（按 w:name 索引、移植、几何）
@@ -642,13 +642,25 @@ docxfmt/
 ├── toc.py          目录 / 图目录 / 表目录
 ├── layout.py       页面 / 分节 / 分页符 / 制表位
 ├── captions.py     题注 SEQ + 交叉引用 REF + 公式编号
+├── insert_captions.py  S3：给「缺题注的图/表」补插题注段（只出单，不含域）
+├── polish.py       S4 排版六条硬要求的检测与执行
 ├── pipeline.py     主流水线（顺序有讲究，别改）；含默认模板回退
 ├── crs.py          ⭐ CRS 唯一实现：指纹 / CrsBuilder / 落盘 / 渲染 / 裁决读取
+├── applykit.py     结构类改动的通用执行框架（supported 分流 + 五栏回执）
 ├── confirm.py      S1 样式确认单（collect + 单文件可编辑 HTML）
+├── factcheck.py    S5b 事实核查（抽取 → 判定回填 → 落 CRS）
 ├── lint.py         S5 正文校验 P1~P10（只出 CRS，绝不改文档）
 ├── revise.py       S6 修订落盘（w:ins/w:del + 批注 + 不变量校验 + 回执）
+├── paginate.py     渲染级量页（WPS/Word COM，Range.Information 六常量，独立进程）
 ├── verify.py       三层校验
 └── winfield.py     COM 重算域（独立进程，因 win32com 未必在主解释器里）
+```
+
+> **⚠️ 两个易混模块（别搞错）**：
+> `captions.py`（598 行）= 题注 SEQ / 交叉引用 REF / 公式编号的**生成**；
+> `insert_captions.py`（390 行）= **给缺题注的图/表补插题注**（S3 阶段）。
+
+```
 
 spec/                spec 样例
 ├── default.json               ⭐ 默认模板（无格式要求时的回退基准）

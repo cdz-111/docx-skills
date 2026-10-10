@@ -59,6 +59,17 @@ def analyze(docx, spec, log=print):
     scheme = (spec.get("numbering") or {}).get("caption", "global")
     sep = (spec.get("numbering") or {}).get("sep", "-")
 
+    # 续表标注（S3 新能力，默认关闭）：
+    #   skip_continuation=True 且 continuation_label 为 None → 维持现状（只跳过、不出版注）。
+    #   continuation_label 非 None（如 "续表 {n}"）→ 每个续段额外出一条
+    #   executor=insert_continuation_label 的 CRS 项（只出单，绝不自动落盘）。
+    cap_cfg = spec.get("captions") or {}
+    skip_cont = cap_cfg.get("skip_continuation", True)
+    cont_label = cap_cfg.get("continuation_label")
+    if (not skip_cont) and (cont_label is None):
+        log("[warn] captions.skip_continuation=false 但未设 continuation_label："
+            "续表将按普通表处理，可能误报「缺题注」")
+
     b = CrsBuilder(docx, sources=("insert-captions",),
                    baseline_note="题注补插单；目标指纹变化即作废")
 
@@ -148,14 +159,42 @@ def analyze(docx, spec, log=print):
     # ---- 表：每个 w:tbl 看上方紧邻段
     n_tab = 0
     n_cont = 0
+    n_cont_label = 0
     for ti, tbl in enumerate(root.iter(qn("tbl"))):
         prev = tbl.getprevious()
         # 续表：紧贴在上一个表格之后 —— 同一逻辑表被拆成多个 w:tbl，
         # 题注只挂在该逻辑表的第一个分段之前，续段不该再出题注。
         # （ti 仍是真实 w:tbl 索引，continue 不影响执行器用的 where.tbl_index。）
         if prev is not None and prev.tag == qn("tbl"):
-            n_cont += 1
-            continue
+            emitted = False
+            # 开了续表标注（continuation_label 非 None）→ 出 insert_continuation_label 项。
+            # where 指向续表**正前方**（执行器按 tbl_index 插在该表之前）。
+            if cont_label is not None:
+                first = _chain_first_tbl(tbl)
+                num = _cap_num_of_tbl(first)
+                if num is None:
+                    log("[题注] 续表（第 %d 个表）回溯不到被续逻辑表的题注号，跳过标注"
+                        % (ti + 1))
+                else:
+                    text = _render_label(cont_label, num)
+                    pi = _prev_p_index(paras, first)
+                    b.add("A", "结构",
+                          {"section": _sec(texts, pi), "para": pi,
+                           "anchor": "第 %d 个表（续表，无独立题注；续 表%d）"
+                                     % (ti + 1, num),
+                           "count": 1, "tbl_index": ti},
+                          "（无续表标注）", text,
+                          "同一逻辑表被拆成多个 w:tbl；续段紧贴前一张表，"
+                          "应标注「续表 %d」（= 被续逻辑表编号）" % num,
+                          risk="low", executor="insert_continuation_label",
+                          notes="只加标注段（套「题注」样式）；不加 SEQ 域、不进图/表清单")
+                    n_cont_label += 1
+                    emitted = True
+            # 出了续表标注，或（默认）skip_continuation=True → 续段都不再按「缺题注」处理。
+            if emitted or skip_cont:
+                n_cont += 1          # 只把「真正被跳过的续段」计入 (跳过续表 N 个)
+                continue
+            # skip_continuation=False 且未出标注 → 把这续段当普通表，落到下面逻辑（可能出「缺题注」）。
         ok = False
         if prev is not None and prev.tag == qn("p"):
             if RE_CAP_HEAD.match(p_text(prev).strip()) and \
@@ -190,7 +229,54 @@ def analyze(docx, spec, log=print):
     shutil.rmtree(workdir, ignore_errors=True)
     log("[题注] 图缺题注 %d 个；表缺题注 %d 个（跳过续表 %d 个；方案 %s，分隔符 %r）"
         % (n_fig, n_tab, n_cont, scheme, sep))
+    if cont_label is not None:
+        log("[题注] 续表标注：出单 %d 条（模板 %r，只出单不落盘）"
+            % (n_cont_label, cont_label))
     return b.build()
+
+
+def _chain_first_tbl(tbl):
+    """沿「相邻表链」回溯到第一张 w:tbl（紧贴在其前面的不再是表的那个）。"""
+    cur = tbl
+    while True:
+        p = cur.getprevious()
+        if p is not None and p.tag == qn("tbl"):
+            cur = p
+        else:
+            return cur
+
+
+def _cap_num_of_tbl(tbl):
+    """取某张表**上方**题注里的编号；找不到返回 None。
+
+    题注在表上方（可能隔着空段）——向上跳过空段后，以「表 N」开头的段即为题注。
+    编号从题注可见文本里取（SEQ 域缓存值也在 `<w:t>` 里，`p_text` 会一并拼出）。
+    """
+    p = tbl.getprevious()
+    while p is not None and p.tag == qn("p") and not p_text(p).strip():
+        p = p.getprevious()
+    if p is not None and p.tag == qn("p"):
+        t = p_text(p).strip()
+        if t[:1] == "表" and RE_CAP_HEAD.match(t):
+            m = re.search(r"(\d+)", t)
+            if m:
+                return int(m.group(1))
+    return None
+
+
+def _prev_p_index(paras, node):
+    """node 之前最近的 `w:p` 在 paras 里的索引（用于 where.section 定位）；无则 0。"""
+    cur = node.getprevious()
+    while cur is not None:
+        if cur.tag == qn("p") and cur in paras:
+            return paras.index(cur)
+        cur = cur.getprevious()
+    return 0
+
+
+def _render_label(template, n):
+    """渲染续表标注模板。{n} = 被续逻辑表的编号。"""
+    return (template or "").replace("{n}", str(n))
 
 
 def _all(tree):
@@ -215,27 +301,32 @@ def _sec(texts, i):
 
 # ------------------------------------------------------------------ 执行
 class CaptionApplier(Applier):
-    """补插题注段。只增 `w:p`，其余计数不变。"""
+    """补插题注段 / 续表标注段。只增 `w:p`，其余计数不变。"""
 
     allowed_delta = {"p": "*", "tbl": 0, "drawing": 0, "bookmarkStart": 0,
                      "bookmarkEnd": 0, "fldChar": 0, "instrText": 0}
-    supported = {"insert_caption"}
+    supported = {"insert_caption", "insert_continuation_label"}
 
     def __init__(self, docx, spec=None, author="docx-format 排版"):
         super().__init__(docx, author)
         self.spec = spec or {}
 
     def apply_one(self, doc, paras, it):
-        if it.get("executor") == "manual":
+        ex = it.get("executor")
+        if ex == "manual":
             raise _Skip("该项需人工处理")
-        if it.get("executor") != "insert_caption":
-            raise _Skip("本执行器不处理 executor=%s" % it.get("executor"))
+        # 不在 supported 里的项一律原样退回（由 Applier.run 记入回执「转交他处」栏），
+        # 不在这里 raise 成"失败"。
+        if ex not in self.supported:
+            raise _Skip("本执行器不处理 executor=%s" % ex)
         w = it.get("where") or {}
         after = it.get("after_override") or it.get("after") or ""
         if not after:
-            raise _Skip("缺 after（题注文字）")
+            raise _Skip("缺 after（题注/标注文字）")
+        # 题注（insert_caption）与续表标注（insert_continuation_label）都按 tbl_index
+        # 插在**表格正前方**；若无 tbl_index 则退化为「插在图段之后」。
         ti = w.get("tbl_index")
-        if ti is not None:                       # 表题注：插在**表格之前**
+        if ti is not None:
             tbls = list(doc.root.iter(qn("tbl")))
             if ti >= len(tbls):
                 raise _Skip("表格号 %s 越界" % ti)
@@ -251,9 +342,15 @@ class CaptionApplier(Applier):
         etree.SubElement(newp, qn("pPr"))
         style = CAP_STYLE
         try:
-            from .styles import StyleTable
+            from .styles import StyleTable, NAME_ALIASES
             st = StyleTable(doc.sty.getroot())
+            # 文档里题注样式可能叫 "caption" 而非 "题注" → 逐个按别名解析出 styleId
+            # （注意 StyleTable.resolve 返回的是样式**元素**，这里取的是 styleId 字符串）
             sid = st.sid(style)
+            for a in (NAME_ALIASES.get(style) or []):
+                if sid:
+                    break
+                sid = st.sid(a)
             if sid:
                 set_style(newp, sid)
         except Exception:                        # noqa: BLE001

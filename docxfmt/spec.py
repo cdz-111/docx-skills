@@ -116,6 +116,23 @@ DEFAULTS = {
     "captions": {
         "enabled": True,
         "kinds": ["图", "表"],
+        # S3 续表：一张逻辑表被拆成多个 w:tbl 时，续段（紧贴前一张表、前面没段落的表）
+        # 不该有独立题注。skip_continuation=True 时维持现状（只跳过、不出题注）。
+        # continuation_label 默认 None=关闭；设为模板（如 "续表 {n}"）后，
+        # 给每个续段额外出一条 CRS 项（executor=insert_continuation_label），
+        # {n} = 被续的那张逻辑表的编号（沿相邻表链回溯到第一张表的题注号）。
+        # ⚠️ 标注段**不加 SEQ 域、不进图表清单**，只是套「题注」样式的普通段落。
+        # ⚠️ 模板渲染结果应**以「续」起头**（如 "续表 {n}"）或**带「（续）」后缀**
+        #    （如 "表 {n}（续）"），才能被 `verify_all` 第 10 项（正文残留硬写引用）
+        #    识别为标注并豁免；若自定义成别的形状，需同步调整 verify_all 的
+        #    豁免规则（`RE_CONT_A` / `RE_CONT_B`），否则工具会把自己插入的标注误判成硬写引用。
+        #
+        # ⚠️ 默认值真源就在**这里的 DEFAULTS**：这两个开关**刻意不放进 `spec/default.json`**。
+        #    因为 default.json 会以 `requirement` 身份被 `_load_requirement` 反向合并，
+        #    **覆盖**用户 `--spec` 里的显式值——放进去就等于把用户的手按住，
+        #    导致 `--spec {"captions":{"skip_continuation":false}}` 关不掉、失效。
+        "skip_continuation": True,
+        "continuation_label": None,
     },
     "xref": {
         "enabled": True,
