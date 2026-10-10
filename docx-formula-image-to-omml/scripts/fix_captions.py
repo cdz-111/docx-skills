@@ -4,25 +4,24 @@
 从而保住题注内的图片、_Toc 书签、跨段 bookmarkEnd 等结构。
 
 用法: fix_captions.py                          -> dry run，打印全部映射
-      fix_captions.py apply                    -> 落盘到 中期科技报告9-28-图表修复.docx（旧式）
+      fix_captions.py apply                    -> 落盘到 <out.docx>（旧式）
       fix_captions.py <in.docx> <out.docx> [--apply]   -> 被编排调用时用这个（推荐）
 
-被编排调用时（docx-unify-pipeline 的 S2）**必须**走第二/第三种写法或用环境变量
-`DOCXFMT_DOC` / `DOCXFMT_OUT`，否则会去动写死的桌面路径。
+被编排调用时（docx-unify-pipeline 的 S2）**必须**走带 <in.docx> <out.docx> 的写法或用环境变量
+`DOCXFMT_DOC` / `DOCXFMT_OUT`，缺失则报错。
 """
 import zipfile, re, sys, os, collections
 
-_DEFAULT_IN = r'C:\Users\14711\Desktop\中期科技报告9-28-公式规范化.docx'
 _rest = sys.argv[1:]
 APPLY = ('apply' in _rest) or ('--apply' in _rest)
 _files = [a for a in _rest if not a.startswith('-') and a != 'apply']
 
-WORK = os.environ.get('DOCXFMT_WORKDIR') or \
-       r'D:\appdata\workbuddy\2026-09-24-23-47-06\work'
-SRC = _files[0] if _files else (os.environ.get('DOCXFMT_DOC') or _DEFAULT_IN)
-OUT = _files[1] if len(_files) > 1 else (
-    os.environ.get('DOCXFMT_OUT')
-    or r'C:\Users\14711\Desktop\中期科技报告9-28-图表修复.docx')
+WORK = os.environ.get('DOCXFMT_WORKDIR')
+SRC = _files[0] if _files else os.environ.get('DOCXFMT_DOC')
+OUT = _files[1] if len(_files) > 1 else os.environ.get('DOCXFMT_OUT')
+if not SRC or not OUT:
+    sys.exit('用法: fix_captions.py <in.docx> <out.docx> [--apply]'
+             '（或设 DOCXFMT_DOC / DOCXFMT_OUT）')
 
 z = zipfile.ZipFile(SRC)
 xml = z.read('word/document.xml').decode('utf-8')

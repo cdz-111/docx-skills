@@ -86,9 +86,9 @@ docx-unify-pipeline（本 skill）        ← 七阶段编排 + 门禁 + 统一 
 
 ```bash
 PY=~/.workbuddy/binaries/python/envs/default/Scripts/python.exe
-S="C:/Users/14711/.workbuddy/skills/docx-unify-pipeline/scripts"
-D="C:/Users/14711/.workbuddy/skills/docx-format"
-DOCX="课题3-中期科技报告.docx"
+S="~/.workbuddy/skills/docx-unify-pipeline/scripts"
+D="~/.workbuddy/skills/docx-format"
+DOCX="示例文档.docx"
 
 # S0 备份 + 建账本
 cp "$DOCX" "${DOCX%.docx}_备份_$(date +%Y%m%d_%H%M%S).docx"

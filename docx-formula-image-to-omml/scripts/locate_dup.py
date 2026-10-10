@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-"""精确列出 9-26 当前版的 图/表 SEQ 域位置，定位重复与样式异常。
+"""精确列出 docx 里 图/表 SEQ 域位置，定位重复与样式异常。
 
-被编排调用时（docx-unify-pipeline 的 S2）按三级回退取入参，**不传参时行为与从前一致**：
-    DOC = ① sys.argv[1]  ② 环境变量 DOCXFMT_DOC  ③ 原历史默认路径
+被编排调用时（docx-unify-pipeline 的 S2）按两级回退取入参，**缺失则报错**：
+    DOC = ① sys.argv[1]  ② 环境变量 DOCXFMT_DOC
 """
 import os
 import sys
@@ -11,9 +11,9 @@ import zipfile, re
 PARA = re.compile(r'<w:p(?: [^>]*)?>.*?</w:p>|<w:p/>', re.S)
 T = re.compile(r'<w:t(?: [^>]*)?>([^<]*)</w:t>')
 
-DOC = (sys.argv[1] if len(sys.argv) > 1
-       else os.environ.get('DOCXFMT_DOC')
-       or r'C:\Users\14711\Desktop\中期科技报告(09241800)-9-26.docx')
+DOC = sys.argv[1] if len(sys.argv) > 1 else os.environ.get('DOCXFMT_DOC')
+if not DOC:
+    sys.exit('用法: locate_dup.py <in.docx>（或设 DOCXFMT_DOC）')
 
 X = zipfile.ZipFile(DOC).read('word/document.xml').decode('utf-8')
 ps = PARA.findall(X)

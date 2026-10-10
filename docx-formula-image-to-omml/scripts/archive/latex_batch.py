@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
-"""第 1 章公式：LaTeX → OMML（pandoc 一次批量），产出 omml_928.json。"""
+"""（历史脚本，已归档；路径参数须由环境变量或显式传参提供）
+第 1 章公式：LaTeX → OMML（pandoc 一次批量），产出 omml_928.json。
+"""
 import subprocess, re, json, os, zipfile
 
-WORK = r'D:\appdata\workbuddy\2026-09-24-23-47-06\work'
-PANDOC = r'C:\Users\14711\anaconda3\Scripts\pandoc.exe'
+WORK = os.environ.get('DOCXFMT_WORKDIR')
+PANDOC = os.environ.get('PANDOC') or 'pandoc'
 
 # ---------- 行间公式（按段落号，文档顺序即编号顺序）----------
 DISP = [

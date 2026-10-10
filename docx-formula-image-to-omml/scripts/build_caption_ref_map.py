@@ -2,8 +2,9 @@
 """建 (kind, num) -> (ref_name, rendered_text) 映射；rendered_text 为 _Ref 书签内可见文本。"""
 import zipfile, re, sys, json
 
-DOC = sys.argv[1] if len(sys.argv) > 1 else \
-      r'C:\Users\14711\Desktop\中期科技报告9-28-公式规范化-修复版.docx'
+DOC = sys.argv[1] if len(sys.argv) > 1 else None
+if not DOC:
+    sys.exit('用法: build_caption_ref_map.py <in.docx>')
 
 TAGP = re.compile(r'<w:p(?: [^>]*)?/>|<w:p [^>]*>|<w:p>|</w:p>')
 BM = re.compile(r'<w:bookmarkStart\b[^>]*?/>')

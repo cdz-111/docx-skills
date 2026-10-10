@@ -21,7 +21,7 @@ agent_created: true
 
 - Python（需 PIL）：用带 PIL 的解释器；pandoc 必须可用（`pandoc -f markdown -t docx` 会产出标准 OMML）。
   - 本机：python `~/.workbuddy/binaries/python/envs/default/Scripts/python.exe`（有 PIL）；
-    pandoc 在 `C:\Users\14711\anaconda3\Scripts\pandoc.exe`。
+    pandoc（需在 PATH 中，或设 `PANDOC` 环境变量）。
 - pandoc 是原生 Windows 二进制，**路径必须传 Windows 形式**（`D:\...`），Git Bash 的 `/d/...` 它会报 does not exist。
 
 ## 自带脚本（`scripts/`）
@@ -45,9 +45,9 @@ agent_created: true
 ### 归档（历史一次性脚本，见 `scripts/archive/`）
 
 下列脚本是**「9-28 公式规范化」那一次任务的一次性提取/报告脚本**，内部写死了当次的
-`D:\appdata\...\work` 工作目录与桌面路径。它们**不在 S2 链路上**，已移入
-`scripts/archive/`。要用时请先照「被编排调用时的硬要求」把入参改成三级回退，
-别直接跑（会去动历史路径）。
+工作目录与桌面路径。它们**不在 S2 链路上**，已移入
+`scripts/archive/`。要用时请显式传参或读环境变量，
+别直接跑。
 
 | 脚本 | 用途 |
 |---|---|

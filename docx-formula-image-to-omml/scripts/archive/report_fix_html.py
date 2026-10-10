@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
-"""由 fix928_dump.json 生成《图表修复说明.html》（数据与修复脚本同源）"""
+"""（历史脚本，已归档；路径参数须由环境变量或显式传参提供）
+由 fix928_dump.json 生成《图表修复说明.html》（数据与修复脚本同源）
+"""
 import json, html, os
 
-WORK = r'D:\appdata\workbuddy\2026-09-24-23-47-06\work'
+WORK = os.environ.get('DOCXFMT_WORKDIR')
 DST = os.path.join(WORK, '图表修复说明.html')
 d = json.load(open(os.path.join(WORK, 'fix928_dump.json'), encoding='utf-8'))
 
@@ -91,9 +93,9 @@ for h in hards:
 r3.sort(key=lambda x: int(x[0][1]))
 
 HTML = """<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8">
-<title>中期科技报告 9-28 · 图表题注与交叉引用修复说明</title><style>%s</style></head><body><div class="wrap">
-<h1>中期科技报告 9-28 · 图表题注与交叉引用修复说明</h1>
-<div class="sub">源文件 <b>中期科技报告9-28-公式规范化.docx</b> → 成品 <b>中期科技报告9-28-图表修复.docx</b>　|　编号方案：全文连续（图 1–44 / 表 1–52）</div>
+<title>图表题注与交叉引用修复说明</title><style>%s</style></head><body><div class="wrap">
+<h1>图表题注与交叉引用修复说明</h1>
+<div class="sub">源文件 <b>待处理文档.docx</b> → 成品 <b>修复后文档.docx</b>　|　编号方案：全文连续（图 1–44 / 表 1–52）</div>
 
 <div class="cards">
   <div class="card"><div class="k">题注总数</div><div class="v">%d <small>图 44 / 表 52</small></div></div>

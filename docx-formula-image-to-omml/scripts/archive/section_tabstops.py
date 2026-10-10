@@ -1,8 +1,11 @@
 # -*- coding: utf-8 -*-
-"""把关键段落映射到所属分节，算出该节正确的制表位。"""
+"""（历史脚本，已归档；路径参数须由环境变量或显式传参提供）
+把关键段落映射到所属分节，算出该节正确的制表位。
+"""
+import os
 import zipfile, re
 
-SRC = r'D:\appdata\workbuddy\2026-09-24-23-47-06\work\9-28.backup-20260928-005343.docx'
+SRC = os.environ.get('DOCXFMT_SRC')
 xml = zipfile.ZipFile(SRC).read('word/document.xml').decode('utf-8')
 PARA = re.compile(r'<w:p(?: [^>]*)?>.*?</w:p>|<w:p/>', re.S)
 

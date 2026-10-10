@@ -19,7 +19,7 @@ pipeline_state.py —— 七阶段流水线的**状态账本 + 门禁机**。
     PY=~/.workbuddy/binaries/python/envs/default/Scripts/python.exe
 
     # 1) 开局建账本（默认落在 <文档目录>/_unify/pipeline_state.json）
-    "$PY" pipeline_state.py init "课题3-中期科技报告.docx"
+    "$PY" pipeline_state.py init "示例文档.docx"
 
     # 2) 看进度（哪一步该做、哪一步在等批准）
     "$PY" pipeline_state.py status
@@ -29,7 +29,7 @@ pipeline_state.py —— 七阶段流水线的**状态账本 + 门禁机**。
     "$PY" pipeline_state.py set S1 blocked --note "等老板确认样式单"
 
     # 4) 登记产物与闸门结论
-    "$PY" pipeline_state.py artifact S1 "课题3-中期科技报告_样式确认单.json"
+    "$PY" pipeline_state.py artifact S1 "示例文档_样式确认单.json"
     "$PY" pipeline_state.py gate S1 approved --by "老板" --note "全部同意"
 
     # 5) 写盘前自查（指纹 + 闸门），不通过给非零退出码

@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
-"""终极核查：图表顺序 / 交叉引用 是否被我改动过。
-A = 22:12 备份（我下手前的原始 9-26）
-B = 22:24 我的产出（公式规范化）
-C = 22:44 用户当前版本
+"""终极核查：图表顺序 / 交叉引用 是否被改动过。
+A = 基准文件（改动前）
+B = 产出文件
+C = 当前文件
 
-被编排调用时（docx-unify-pipeline 的 S2）按三级回退取入参，**不传参时行为与从前一致**：
-    A / B / C = ① --a/--b/--c 或位置参数  ② 环境变量 DOCXFMT_A/B/C  ③ 原历史默认路径
+被编排调用时（docx-unify-pipeline 的 S2）按下列顺序取入参，**缺失则报错**：
+    A / B / C = ① --a/--b/--c 或位置参数  ② 环境变量 DOCXFMT_A/B/C
 """
 import os
 import sys
@@ -14,17 +14,12 @@ import zipfile, re
 PARA = re.compile(r'<w:p(?: [^>]*)?>.*?</w:p>|<w:p/>', re.S)
 T = re.compile(r'<w:t(?: [^>]*)?>([^<]*)</w:t>')
 
-# 原历史默认路径（兜底，**原样保留**）
-_DEFAULT_A = r'C:\Users\14711\Desktop\中期科技报告(09241800)-9-26.backup-20260926-222152.docx'
-_DEFAULT_B = r'C:\Users\14711\Desktop\中期科技报告(09241800)-9-26-公式规范化.docx'
-_DEFAULT_C = r'C:\Users\14711\Desktop\中期科技报告(09241800)-9-26.docx'
-
 _argv = sys.argv[1:]
 _pos = [a for a in _argv if not a.startswith('--')]
 
 
-def _pick(flag, pos, env, default):
-    """① --flag 的值 → ② 位置参数 → ③ 环境变量 → ④ 历史默认。"""
+def _pick(flag, pos, env, default=None):
+    """① --flag 的值 → ② 位置参数 → ③ 环境变量。"""
     if flag in _argv:
         k = _argv.index(flag)
         if k + 1 < len(_argv):
@@ -34,14 +29,17 @@ def _pick(flag, pos, env, default):
     return os.environ.get(env) or default
 
 
-_A = _pick('--a', 0, 'DOCXFMT_A', _DEFAULT_A)
-_B = _pick('--b', 1, 'DOCXFMT_B', _DEFAULT_B)
-_C = _pick('--c', 2, 'DOCXFMT_C', _DEFAULT_C)
+_A = _pick('--a', 0, 'DOCXFMT_A')
+_B = _pick('--b', 1, 'DOCXFMT_B')
+_C = _pick('--c', 2, 'DOCXFMT_C')
+if not (_A and _B and _C):
+    sys.exit('用法: final_check.py --a <基准.docx> --b <产出.docx> --c <当前.docx>'
+             '（或三个位置参数，或设 DOCXFMT_A / DOCXFMT_B / DOCXFMT_C）')
 
 FILES = [
-    ('A 我动手前的 9-26(备份22:12)', _A),
-    ('B 我的产出(公式规范化22:24)', _B),
-    ('C 你的最新版(9-26 22:44)', _C),
+    ('A 基准文件', _A),
+    ('B 产出文件', _B),
+    ('C 当前文件', _C),
 ]
 
 

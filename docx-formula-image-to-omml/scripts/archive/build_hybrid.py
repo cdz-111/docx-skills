@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
-"""9-28 重建：第1章公式图→原生OMML + 全文公式连续编号 (1)-(75)。
-产出 C:\\Users\\14711\\Desktop\\中期科技报告9-28-公式规范化.docx
+"""（历史脚本，已归档；路径参数须由环境变量或显式传参提供）
+9-28 重建：第1章公式图→原生OMML + 全文公式连续编号 (1)-(75)。
+产出 <OUT>.docx
 """
 import zipfile, re, json, os, shutil
 
-WORK = r'D:\appdata\workbuddy\2026-09-24-23-47-06\work'
+WORK = os.environ.get('DOCXFMT_WORKDIR')
 SRC = os.path.join(WORK, '9-28.backup-20260928-005343.docx')
-OUT = r'C:\Users\14711\Desktop\中期科技报告9-28-公式规范化.docx'
+OUT = os.environ.get('DOCXFMT_OUT')
 z = zipfile.ZipFile(SRC)
 xml = z.read('word/document.xml').decode('utf-8')
 rels = z.read('word/_rels/document.xml.rels').decode('utf-8')

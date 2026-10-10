@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
-"""枚举第 1 章（para<1720）里的公式图：区分行内/行间，计数、导出。"""
+"""（历史脚本，已归档；路径参数须由环境变量或显式传参提供）
+枚举第 1 章（para<1720）里的公式图：区分行内/行间，计数、导出。
+"""
 import zipfile, re, json, os
 
-WORK = r'D:\appdata\workbuddy\2026-09-24-23-47-06\work'
+WORK = os.environ.get('DOCXFMT_WORKDIR')
 SRC = os.path.join(WORK, '9-28.backup-20260928-005343.docx')
 z = zipfile.ZipFile(SRC)
 xml = z.read('word/document.xml').decode('utf-8')

@@ -7,7 +7,7 @@ agent_created: true
 # 长文档编号与交叉引用治理流水线
 
 **这是「治理已有文档」的 skill，不是「生成新文档」的 skill。** 面向的对象是几千段、几十万字、
-带公式/图表/目录/清单的中文长文档（中期科技报告、学位论文、项目申报书、结题报告）。
+带公式/图表/目录/清单的中文长文档（技术报告、学位论文、项目申报书、结题报告）。
 
 ## 0. 生态位（为什么需要它）
 
@@ -46,7 +46,7 @@ SEQ 域（题注号）→ _Ref 书签（引用锚点）→ REF 域（正文引�
 
 ## 2. 环境
 
-- Python：`C:\Users\14711\.workbuddy\binaries\python\envs\default\Scripts\python.exe`（已装 python-docx / PIL）。
+- Python：`%USERPROFILE%\.workbuddy\binaries\python\envs\default\Scripts\python.exe`（已装 python-docx / PIL）。
 - Windows + Git Bash：命令前先修 PATH —— `export PATH="/usr/bin:/bin:/c/Windows/System32:$PATH"`。
 - **不要用 python-docx 做修复**（它会把域/书签拍平）。它只用来做最后一步"能否打开"的冒烟。
   修复一律按 `<w:p>` 切分原 XML 做字符串级替换。
@@ -198,7 +198,7 @@ python "$S/../../docx-numbering-xref-pipeline/scripts/verify_all.py" "文档.doc
 `word/comments.xml`、段数不同），这时把第 11/12/13 项标成 `EXPECT`（预期差异，显式标注原因、
 **不静默**），**不计入 FAIL**，退出码仍为 0。12/13 两项没给 `--base` 时根本不出现在报告里。
 
-## 6. 本次实战基准（2026-09-28，中期科技报告 41MB / 4668 段）
+## 6. 本次实战基准（2026-09-28，示例长文档 41MB / 4668 段）
 
 可作为后续同类文档的回归参照：
 
@@ -307,7 +307,7 @@ python "$S/../../docx-numbering-xref-pipeline/scripts/verify_all.py" "文档.doc
 实测 177 项里有 143 项是假警（96 项「公式缺编号」因为编号是手打 `(1)` 文本、47 项「表缺题注」
 因为题注是标准 `SEQ 表` 域）。**只有把假警剔掉，剩下的才是真正要改的**，也才能判断模板提取得准不准。
 
-### 8.7 本轮工具（`D:/Code/快速统一docx格式/tools/`）
+### 8.7 本轮工具（`快速统一docx格式/tools/`）
 
 | 脚本 | 用途 |
 |---|---|
@@ -433,7 +433,7 @@ S1 审计报告整理出的 `items.json`（已在 `items.json` 里写好 CRS 行
 其余 zip 部件逐字节照抄、条目顺序不变（与 §1 铁律一致）。
 
 > ⚠️ 注意：**这条与 §8.7 那张表无关**。§8.7 列的是
-> `D:/Code/快速统一docx格式/tools/` 里**另一批**脚本的来源，不是本 skill 的执行器。
+> `快速统一docx格式/tools/` 里**另一批**脚本的来源，不是本 skill 的执行器。
 
 ### 9.4 与 S1 的先后关系
 
@@ -488,7 +488,7 @@ U=".../docx-unify-pipeline/scripts"
 `docx-format` 的 `crs` 模块（不另起一套，见「不要做」最后一条）。
 
 ```bash
-N="C:/Users/14711/.workbuddy/skills/docx-numbering-xref-pipeline"
+N="~/.workbuddy/skills/docx-numbering-xref-pipeline"
 
 # ① 审计（只读）→ 人读报告，据此整理出改动项清单 items.json
 "$PY" "$N/../docx-formula-image-to-omml/scripts/audit_captions.py" "$DOCX"

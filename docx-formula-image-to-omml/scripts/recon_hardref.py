@@ -2,8 +2,9 @@
 """侦察正文硬写「图N/表N」的 run 结构，分类决定改写策略。"""
 import zipfile, re, sys
 
-DOC = sys.argv[1] if len(sys.argv) > 1 else \
-      r'C:\Users\14711\Desktop\中期科技报告9-28-公式规范化-修复版.docx'
+DOC = sys.argv[1] if len(sys.argv) > 1 else None
+if not DOC:
+    sys.exit('用法: recon_hardref.py <in.docx>')
 
 TAGP = re.compile(r'<w:p(?: [^>]*)?/>|<w:p [^>]*>|<w:p>|</w:p>')
 WT = re.compile(r'<w:t(?: [^>]*)?>([^<]*)</w:t>', re.S)

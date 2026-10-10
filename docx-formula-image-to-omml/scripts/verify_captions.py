@@ -1,20 +1,18 @@
 # -*- coding: utf-8 -*-
-"""校验 中期科技报告9-28-图表修复.docx
+"""校验 图表题注修复后的 docx（题注编号 / 交叉引用 / 硬写号）
 
-被编排调用时（docx-unify-pipeline 的 S2）按三级回退取入参，**不传参时行为与从前一致**：
-    SRC = ① sys.argv[1]  ② 环境变量 DOCXFMT_DOC  ③ 原历史默认路径
-    OUT = ① sys.argv[2]  ② 环境变量 DOCXFMT_OUT  ③ 原历史默认路径
+被编排调用时（docx-unify-pipeline 的 S2）按两级回退取入参，**缺失则报错**：
+    SRC = ① sys.argv[1]  ② 环境变量 DOCXFMT_DOC
+    OUT = ① sys.argv[2]  ② 环境变量 DOCXFMT_OUT
 """
 import os
 import zipfile, re, sys, collections
 import xml.etree.ElementTree as ET
 
-SRC = (sys.argv[1] if len(sys.argv) > 1
-       else os.environ.get('DOCXFMT_DOC')
-       or r'C:\Users\14711\Desktop\中期科技报告9-28-公式规范化.docx')
-OUT = (sys.argv[2] if len(sys.argv) > 2
-       else os.environ.get('DOCXFMT_OUT')
-       or r'C:\Users\14711\Desktop\中期科技报告9-28-图表修复.docx')
+SRC = sys.argv[1] if len(sys.argv) > 1 else os.environ.get('DOCXFMT_DOC')
+OUT = sys.argv[2] if len(sys.argv) > 2 else os.environ.get('DOCXFMT_OUT')
+if not SRC or not OUT:
+    sys.exit('用法: verify_captions.py <in.docx> <out.docx>（或设 DOCXFMT_DOC / DOCXFMT_OUT）')
 
 TAG = re.compile(r'<w:tbl>|</w:tbl>|<w:p(?: [^>]*)?/>|<w:p [^>]*>|<w:p>|</w:p>')
 INSTR = re.compile(r'<w:instrText[^>]*>(.*?)</w:instrText>', re.S)

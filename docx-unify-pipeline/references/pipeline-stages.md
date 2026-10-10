@@ -33,9 +33,9 @@ S1 与 S2 是**并行支路**（样式基准与编号治理互不依赖）。S3 
 
 ```bash
 PY=~/.workbuddy/binaries/python/envs/default/Scripts/python.exe
-D="C:/Users/14711/.workbuddy/skills/docx-format"
-U="C:/Users/14711/.workbuddy/skills/docx-unify-pipeline/scripts"
-DOCX="课题3-中期科技报告.docx"
+D="~/.workbuddy/skills/docx-format"
+U="~/.workbuddy/skills/docx-unify-pipeline/scripts"
+DOCX="示例文档.docx"
 
 # 0.1 备份（带时间戳，永不覆盖原文件）
 cp "$DOCX" "${DOCX%.docx}_备份_$(date +%Y%m%d_%H%M%S).docx"
@@ -85,7 +85,7 @@ cp "$DOCX" "${DOCX%.docx}_备份_$(date +%Y%m%d_%H%M%S).docx"
 ### 命令
 
 ```bash
-D="C:/Users/14711/.workbuddy/skills/docx-format"
+D="~/.workbuddy/skills/docx-format"
 
 # 默认模板
 "$PY" -m docxfmt styles "$DOCX"
@@ -147,7 +147,7 @@ D="C:/Users/14711/.workbuddy/skills/docx-format"
 ### 命令
 
 ```bash
-N="C:/Users/14711/.workbuddy/skills/docx-numbering-xref-pipeline"
+N="~/.workbuddy/skills/docx-numbering-xref-pipeline"
 S="$N/../docx-formula-image-to-omml/scripts"
 
 # 2.1 四条审计全跑（只读）—— 少跑一条就会漏一整类病灶

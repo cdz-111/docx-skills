@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """核对每个交叉引用(REF 域)与它指向题注的显示号是否一致。"""
+import os
+import sys
 import zipfile, re
 
 PARA = re.compile(r'<w:p(?: [^>]*)?>.*?</w:p>|<w:p/>', re.S)
@@ -45,6 +47,14 @@ def run(path, tag):
     print('\n  不一致条数: %d' % bad)
 
 
-run(r'C:\Users\14711\Desktop\中期科技报告(09241800)-9-26.backup-20260926-222152.docx', 'A 我动手前(备份 22:12)')
-run(r'C:\Users\14711\Desktop\中期科技报告(09241800)-9-26-公式规范化.docx', 'B 我的产出(22:24)')
-run(r'C:\Users\14711\Desktop\中期科技报告(09241800)-9-26.docx', 'C 你的最新版(22:44)')
+_argv = sys.argv[1:]
+A = _argv[0] if len(_argv) > 0 else os.environ.get('DOCXFMT_A')
+B = _argv[1] if len(_argv) > 1 else os.environ.get('DOCXFMT_B')
+C = _argv[2] if len(_argv) > 2 else os.environ.get('DOCXFMT_C')
+if not (A and B and C):
+    sys.exit('用法: check_ref.py <A基准.docx> <B产出.docx> <C当前.docx>'
+             '（或设 DOCXFMT_A / DOCXFMT_B / DOCXFMT_C）')
+
+run(A, 'A 基准文件')
+run(B, 'B 产出文件')
+run(C, 'C 当前文件')

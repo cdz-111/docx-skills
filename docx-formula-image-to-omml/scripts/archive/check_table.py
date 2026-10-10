@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
-"""生成公式逐条对照核对表 HTML：原图 vs 转换后公式（MathML，浏览器原生渲染）。"""
+"""（历史脚本，已归档；路径参数须由环境变量或显式传参提供）
+生成公式逐条对照核对表 HTML：原图 vs 转换后公式（MathML，浏览器原生渲染）。
+"""
 import subprocess, re, os, base64, json
 
-WORK = r'D:\appdata\workbuddy\2026-09-24-23-47-06\work'
+WORK = os.environ.get('DOCXFMT_WORKDIR')
 IMG = os.path.join(WORK, 'img928')
-PANDOC = r'C:\Users\14711\anaconda3\Scripts\pandoc.exe'
+PANDOC = os.environ.get('PANDOC') or 'pandoc'
 omml_src = open(os.path.join(WORK, 'x928_latex.py'), encoding='utf-8').read()
 ns = {}
 exec(omml_src.split("items = ")[0], ns)
@@ -83,7 +85,7 @@ code{color:#5f6b7a;font-size:11px}
 
 out = ['<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8">',
        '<title>9-28 公式转换核对表</title><style>%s</style></head><body>' % CSS,
-       '<h1>中期科技报告 9-28 · 第 1 章公式转换核对表</h1>',
+       '<h1>第 1 章公式转换核对表</h1>',
        '<p class="sub">左列 = 原文档里那张公式图（截自你的 docx），右列 = 转换后的可编辑公式。'
        '逐条比对即可确认识读无误。<span class="badge">%d 条行间 + %d 处行内</span></p>' % (len(disps), len(inls)),
        '<div class="note">行间公式已按全文连续编号排好：第 1 章这 16 条 = (1)–(16)；'

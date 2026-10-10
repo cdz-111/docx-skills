@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
-"""把 cap928.json 渲染成可读的审计报告 HTML（深色主题）。"""
+"""（历史脚本，已归档；路径参数须由环境变量或显式传参提供）
+把 cap928.json 渲染成可读的审计报告 HTML（深色主题）。
+"""
 import json, os, html as H
 
-WORK = r'D:\appdata\workbuddy\2026-09-24-23-47-06\work'
+WORK = os.environ.get('DOCXFMT_WORKDIR')
 d = json.load(open(os.path.join(WORK, 'cap928.json'), encoding='utf-8'))
 rows, refs, broken, hard = d['rows'], d['refs'], d['broken'], d['hard']
 
@@ -106,8 +108,8 @@ li{margin:3px 0}
 
 h = ['<!DOCTYPE html><html lang="zh"><head><meta charset="utf-8">',
      '<title>9-28 图表题注与交叉引用审计</title><style>%s</style></head><body>' % CSS,
-     '<h1>中期科技报告 9-28 · 图表题注 与 交叉引用 审计</h1>',
-     '<p class="sub">对象：<code>中期科技报告9-28-公式规范化.docx</code>　'
+     '<h1>图表题注 与 交叉引用 审计</h1>',
+     '<p class="sub">对象：<code>待处理文档.docx</code>　'
      '全文 %d 个顶层块（段落 %d / 表格 %d）</p>' % (d['blocks'], d['blocks'] - d['tables'], d['tables']),
 
      '<div class="cards">',

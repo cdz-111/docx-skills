@@ -74,7 +74,7 @@ description: >
 4. **CRS 的读写只有一份实现**：`docxfmt/crs.py`。`lint` / `polish` / `propose` /
    外部编排层都从这里拿能力，协议细则在 `references/change-request-sheet.md`。
    **不许各写一套 CRS 读写**——否则 `.html` 与 `.json` 必然漂移。
-5. **历史资产 `D:/Code/快速统一docx格式/`（YAML 模板驱动的 CLI）不再并行演进**，
+5. **历史资产 `快速统一docx格式/`（YAML 模板驱动的 CLI）不再并行演进**，
    只作为**规格来源**：它的 `templates/*.yaml` 里的字号/行距/缩进/编号口径，
    按需移植进 `spec/*.json`。两套实现同时演进会造成同一份文档两种结果。
    需要那份仓库里的分析型工具（`compare_docx_format.py`、`extract_format_spec.py`、

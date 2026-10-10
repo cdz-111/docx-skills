@@ -9,11 +9,11 @@ import zipfile, re, io, html as H
 # ⚠️ 原来这里把输入/输出路径写死在「9-28 那一次」的文件上，导致本脚本
 #    **无法被编排调用**（`docx-unify-pipeline` 的 S2 会直接 FileNotFoundError），
 #    而且输出目录早已不存在。
-#    现在改为三级回退，**不传参时行为与从前一致**：
-#      ① 命令行第一个参数  ② 环境变量 DOCXFMT_DOC  ③ 原默认路径
-DOC = (sys.argv[1] if len(sys.argv) > 1
-       else os.environ.get('DOCXFMT_DOC')
-       or r'C:\Users\14711\Desktop\中期科技报告9-28-公式规范化.docx')
+#    现在改为两级回退，**缺失则报错**：
+#      ① 命令行第一个参数  ② 环境变量 DOCXFMT_DOC
+DOC = sys.argv[1] if len(sys.argv) > 1 else os.environ.get('DOCXFMT_DOC')
+if not DOC:
+    sys.exit('用法: audit_captions.py <in.docx>（或设 DOCXFMT_DOC）')
 OUTDIR = os.environ.get('DOCXFMT_OUTDIR') or os.path.dirname(
     os.path.abspath(DOC))
 os.makedirs(OUTDIR, exist_ok=True)

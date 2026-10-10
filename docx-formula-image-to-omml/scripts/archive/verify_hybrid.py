@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
-"""9-28 产出校验：结构 / 计数 / 编号 / 引用 / 媒体完整性 / 段落 diff。"""
+"""（历史脚本，已归档；路径参数须由环境变量或显式传参提供）
+9-28 产出校验：结构 / 计数 / 编号 / 引用 / 媒体完整性 / 段落 diff。
+"""
 import zipfile, re, os, json
 
-WORK = r'D:\appdata\workbuddy\2026-09-24-23-47-06\work'
+WORK = os.environ.get('DOCXFMT_WORKDIR')
 SRC = os.path.join(WORK, '9-28.backup-20260928-005343.docx')
-OUT = r'C:\Users\14711\Desktop\中期科技报告9-28-公式规范化.docx'
+OUT = os.environ.get('DOCXFMT_OUT')
 
 zs, zo = zipfile.ZipFile(SRC), zipfile.ZipFile(OUT)
 xs = zs.read('word/document.xml').decode('utf-8')
