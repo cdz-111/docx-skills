@@ -139,8 +139,11 @@ cp "$DOCX" "${DOCX%.docx}_备份_$(date +%Y%m%d_%H%M%S).docx"
 | S4 | 排版六条硬要求 | **老板** | 六条分立的 CRS 行 | 本文 §S4 |
 | S5 | 内容校验与事实核查 | **老板** | 校验清单 + 事实核查表 | 本文 §S5 + `references/fact-check-protocol.md` |
 | S6 | 修订落盘与交付 | **老板** | 修订 docx + 三栏回执 | 本文 §S6 |
+| S7 | （可选）分发瘦身：图片压缩 | **老板** | 精简版 docx + 压缩回执 | 本文 §S7 |
 
 **闸门有两档**：`老板` = 必须拿到明确批准；`自检` = 机器断言全绿即可推进。
+
+> S7 是**旁路阶段**：只在"要出可分发版/邮件版"时做，不动正文，不影响 S0~S6 的账本。
 
 ---
 
@@ -324,6 +327,69 @@ S=".../docx-unify-pipeline/scripts"
 
 ---
 
+## S7（可选）分发瘦身：图片智能压缩
+
+**什么时候做**：docx 体积过大（报告类实测：图片占 **95%** 体积）需要出可分发版，
+而正文一个字都不能动时。
+
+**核心命令**（`scripts/compress_images.py`）：
+
+```bash
+PY="C:/Users/14711/.workbuddy/binaries/python/envs/default/Scripts/python.exe"
+S=".../docx-unify-pipeline/scripts"
+
+"$PY" "$S/compress_images.py" "<源>.docx" "<源>_精简版.docx" 88 --expect-md5 <源md5>
+"$PY" "$S/compress_images.py" "<源>.docx" out.docx" 88 --dpi 200     # 追加降采样
+"$PY" "$S/compress_images.py" "<源>.docx" out.docx" 90 --no-png8     # 只转 JPEG，保守
+```
+
+**算法**：逐张图在 `JPEG(q)` / `PNG-8(256色)` / 原图 三者中取**体积最小**者。
+
+| 图像类型 | 通常胜出 | 原因 |
+|---|---|---|
+| 图形 / 截图 / 图表（颜色数少，几千~2万） | **PNG-8** | 又小又比 JPEG 锐利（彩色文字边缘无振铃） |
+| 照片 / 3D 渲染（颜色数多） | **JPEG q=88** | 有损压缩比调色板有效率 |
+| 重编码反而更大 | 原图 | 保留 |
+
+**实测口径（2026-10-13，《项目-中期进展报告》）**：129 张图（121 PNG + 8 JPEG，
+解压 88.9 MB / 全包 93.5 MB）→ PNG-8 88 张 + JPEG 39 张 + 原图 2 张 →
+图片 23.2 MB、**全包 23.5 MB（−73.7%）**；画质 **PSNR 中位 40.8 / 最低 31.5 dB**。
+同一文档试算对照：**只转 JPEG q=85 只能到 38 MB**，逐图择优多省 40%。
+
+**档位选择（出单时给老板选）**：
+
+| 档 | 做法 | 该文档实测 |
+|---|---|---|
+| 智能择优（默认推荐） | 逐图择优，**分辨率不变** | 23.5 MB |
+| 更小 | 再 `--dpi 200` 降采样 | ≈22 MB |
+| 最小 | `--dpi 150` | ≈18 MB |
+| 高保真 | `--no-png8` 纯转 JPEG q=90 | ≈44 MB |
+
+**必须守住的不变量（脚本已硬断言，失败即回滚不落盘）**：
+
+1. `word/document.xml` / `styles.xml` 等非图片部件**逐字节相同**；
+2. `w:p` / `w:tbl` / `w:drawing` / `fldChar` / 书签计数**全不变**；
+3. 图片 `r:embed` 引用的 rId **全部有映射**，rel 目标**无断链**；
+4. 图片**尺寸不变**（除非显式 `--dpi`）；扩展名与真实格式相符。
+
+**坑（本轮实测踩过／差点踩）**：
+
+1. ⚠️ **PSNR 必须在"按白底合成"后算**：原图带 alpha 时直接 `.convert('RGB')` 会**丢弃 alpha**、
+   保留透明区的任意底层色，与压缩版的白底一比 → **假报 7~13 dB**（实测 33 张里 10 张假红）。
+   正解 = `bg=Image.new('RGB',size,(255,255,255)); bg.paste(im.convert('RGBA'), mask=alpha)`。
+2. ⚠️ **图片扩展名改了必须同步 `.rels` 的 `Target`**：本档有 33 张 `.png` → `.jpeg`。
+   `[Content_Types].xml` 需已声明该扩展名（`png`/`jpeg` 通例都有，没有要补 `<Default>`）。
+3. ⚠️ **zip 目录条目要保留**：原包含 `word/`、`docProps/` 等目录条目，重写 zip 时若
+   `continue` 掉会导致"部件集合不一致"（功能无害但验收不干净）→ 用 `writestr(ZipInfo(name), b'')` 补回。
+4. ⚠️ **PNG-8 用 `MEDIANCUT + FLOYDSTEINBERG`**：对渐变图加抖动可显著减色带；
+   纯图形图用哪档都行。
+5. ⚠️ **`wp:extent`(EMU) 才是显示尺寸**：图片自带 DPI 元数据丢失**无害**（显示尺寸由 extent 定），
+   别据此判定"分辨率被改"。降采样目标像素 = `显示cm / 2.54 × 目标dpi`。
+6. ⚠️ **指纹门禁**：执行前 `--expect-md5` 比对源文件；老板随时可能用 WPS 重存，
+   指纹不符必须重新出单（本轮源文件在检查后又被保存过一次，实测）。
+
+---
+
 ## 目录结构
 
 ```
@@ -334,7 +400,8 @@ docx-unify-pipeline/
 │   └── fact-check-protocol.md      事实核查协议（范围/抽取/检索/判定/核查表/禁令）
 └── scripts/
     ├── pipeline_state.py           状态账本 + 门禁机（init/status/set/gate/artifact/next/check）
-    └── crs_merge.py                多来源 CRS 合并（验指纹/去重/暴露冲突/统一编号）
+    ├── crs_merge.py                多来源 CRS 合并（验指纹/去重/暴露冲突/统一编号）
+    └── compress_images.py          S7 图片智能压缩（逐图 JPEG/PNG-8/原图 取最小，出可分发精简版）
 ```
 
 **上游依赖**（必须存在，缺了就是环境没配好，不要另写一套）：
