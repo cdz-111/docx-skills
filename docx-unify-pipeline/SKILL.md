@@ -8,7 +8,9 @@ description: >
   S3 题注补插与引用落地 → S4 排版（一级标题分页／去中英与公式空格／
   消除大范围空白／消除单字带标点独占一行／题注与图同页／三线表与全框表）→
   S5 内容校验与事实核查（全角符号、错字多字少字、正文与图表数据相符、
-  交叉引用相符、奖项新闻官方通报联网核对、通顺性）→ S6 修订落盘与交付。
+  交叉引用相符、奖项新闻官方通报联网核对、通顺性）→ S6 修订落盘与交付 →
+  S6.5 定稿冻结（版本锁定后把交叉引用域替换为纯文本，供非 Word 渲染系统正确显示）→
+  S7（可选）图片智能压缩。
   ⚠️ 两道硬门禁，不可绕过：
   (1) 任何写盘修改前必须先出「改动事项单（CRS）」逐条可勾选清单，老板批准后才执行；
   (2) 修改一律用「修订模式」写入，并对每处挂批注说明改动原因。
@@ -121,6 +123,18 @@ cp "$DOCX" "${DOCX%.docx}_备份_$(date +%Y%m%d_%H%M%S).docx"
     -o "${DOCX%.docx}_修订.docx"
 "$PY" -m docxfmt fields "${DOCX%.docx}_修订.docx" \
     -o "${DOCX%.docx}_修订_域重算.docx"
+
+# S6.5 定稿冻结（仅在版本锁定、且要交给非 Word 渲染系统时；详见 §S6.5）
+X="~/.workbuddy/skills/docx-numbering-xref-pipeline/scripts"
+"$PY" "$X/xref_freeze.py" audit "${DOCX%.docx}_修订_域重算.docx" \
+    -o "${DOCX%.docx}_冻结清单.json"
+# 🛑 老板确认体例（dead|indicator|mixed）后：
+"$PY" "$X/xref_freeze.py" apply "${DOCX%.docx}_修订_域重算.docx" \
+    "${DOCX%.docx}_定稿.docx" --plan "${DOCX%.docx}_冻结清单.json" \
+    --style mixed --receipt "${DOCX%.docx}_冻结回执.json"
+"$PY" "$X/verify_xref_freeze.py" "${DOCX%.docx}_定稿.docx" \
+    --base "${DOCX%.docx}_修订_域重算.docx" \
+    --receipt "${DOCX%.docx}_冻结回执.json" --allow-remaining 0
 ```
 
 **完整剧本（每阶段的目标/命令/产物/闸门/断言/失败处理/坑）见
@@ -139,11 +153,16 @@ cp "$DOCX" "${DOCX%.docx}_备份_$(date +%Y%m%d_%H%M%S).docx"
 | S4 | 排版六条硬要求 | **老板** | 六条分立的 CRS 行 | 本文 §S4 |
 | S5 | 内容校验与事实核查 | **老板** | 校验清单 + 事实核查表 | 本文 §S5 + `references/fact-check-protocol.md` |
 | S6 | 修订落盘与交付 | **老板** | 修订 docx + 三栏回执 | 本文 §S6 |
+| S6.5 | 定稿冻结（交叉引用域 → 正文） | **老板** | 冻结 docx + 冻结清单 + 回执 | 本文 §S6.5 |
 | S7 | （可选）分发瘦身：图片压缩 | **老板** | 精简版 docx + 压缩回执 | 本文 §S7 |
 
 **闸门有两档**：`老板` = 必须拿到明确批准；`自检` = 机器断言全绿即可推进。
 
-> S7 是**旁路阶段**：只在"要出可分发版/邮件版"时做，不动正文，不影响 S0~S6 的账本。
+> S6.5 是**交付前的最后一道正文处理**：版本锁定后把 `REF` 域替换为纯文本，
+> 让任何非 Word 渲染系统都能正确显示。交付给 Word 生态之外的系统时**必须做**。
+>
+> S7 是**旁路阶段**：只在"要出可分发版/邮件版"时做，不动正文，不影响 S0~S6.5 的账本。
+> 两者可叠加：先 S6.5 去域定稿，再 S7 压图出版。
 
 ---
 
@@ -257,6 +276,20 @@ S=".../docx-unify-pipeline/scripts"
 只有渲染后才知道），所以走**静态 + 渲染级混合**：
 能静态判的静态判（快、可回归、可 CI），必须看分页的走 Word/WPS COM 导出 PDF 后量页。
 
+**③④ 有两条渲染级判据，两条都跑**（互为交叉验证）：
+
+```bash
+python -m docxfmt polish 文档.docx --pages 量页.json        # 判据一：COM 对象模型
+python -m docxfmt pdfmeasure 文档.docx --out PDF量测.json   # 判据二：PDF 文本层
+python -m docxfmt polish 文档.docx --pages 量页.json \
+    --pdf-measure PDF量测.json                              # 两判据对账（只作证据）
+```
+
+判据一走 `Range.Information`（能对回段落，但受对象模型自洽性影响，WPS 尤甚）；
+判据二量**导出 PDF 的文本层**（交付物真身，第三方系统看到的就是它）。
+**仅 PDF 报出的页 = 第三方渲染真会出问题的页**，优先处理。
+实测两者行距口径能差 2.5 倍（COM 46.0pt vs PDF 18.0pt）——`--pdf-measure` 会打标定告警。
+
 **拿不到 COM 时降级**：③④⑤ 只出"建议处理位置清单"，让老板在 Word 里手工挪。
 **绝不瞎猜分页结果然后自动改。**
 
@@ -325,6 +358,78 @@ S=".../docx-unify-pipeline/scripts"
 4. 一句关键提醒：**域缓存不会自动重算**，在 Word 里 `Ctrl+A` → `F9` 一次即可
 5. 修订模式下**接受/拒绝**的入口（在 Word「审阅」选项卡）
 
+> **若文档要交付给 Word 生态之外的系统**（在线预览、PDF 生成器、
+> LaTeX/HTML 转换、第三方系统导入），S6 之后**必须**继续走 **§S6.5 定稿冻结**。
+> S6 产出的仍是「活域」文档，只有 Word 会重算它。
+
+---
+
+## S6.5 定稿冻结（交叉引用域 → 正文）
+
+**什么时候做**：内容版本**已锁定**（老板确认定稿、修订全部接受、域已 `F9` 重算过一次），
+且文档要交给**非 Word 的渲染系统**（在线预览、PDF 生成器、LaTeX/HTML 转换、
+第三方系统导入）时。
+
+**为什么必须做**：`REF` 域是"活"的——Word 打开会重算，但**第三方渲染器不会**。
+它们只看域结果区的缓存文本，于是会渲染出**过期编号**，或直接吐出
+「错误！未定义书签」/「Error! Reference source not found」。定稿时把域替换成
+**纯文本**（无 `w:fldChar`、无 `instrText`），才能保证任何系统渲染都正确。
+
+**体例（老板定，逐条可覆盖）**：
+
+| 体例 | 结果 | 适用 |
+|---|---|---|
+| `dead` | 死格式：`图 5-5` / `表 6-1` | 严谨正文，编号即事实 |
+| `indicator` | 指示词：`如上图` / `见下表` | 靠近图表的就近描述 |
+| `mixed` | 同一目标**首次**给死格式，后续出现用指示词 | 长文中反复引用同一图表 |
+
+指示词按**书签与引用的相对位置**自动判：书签在该引用**之前** → `上图`，
+**之后** → `下表`；跨节/跨页仍以书签位置为准。
+
+**命令（audit 出清单 → 老板确认 → apply 落盘 → verify 验收）**：
+
+```bash
+PY=~/.workbuddy/binaries/python/envs/default/Scripts/python.exe
+X=".../docx-numbering-xref-pipeline/scripts"
+
+# ① 只读出清单（不动盘）：逐条 ID/位置/当前缓存/建议替换/体例判定/是否 stale
+"$PY" "$X/xref_freeze.py" audit "<定稿>.docx" -o "<定稿>_冻结清单.json"
+# 🛑 老板确认体例（--style dead|indicator|mixed）；不需要的项把 include 置 false
+
+# ② 落盘（走门禁一：md5 指纹比对 + 逐条 include）
+"$PY" "$X/xref_freeze.py" apply "<定稿>.docx" "<定稿>_冻结.docx" \
+    --plan "<定稿>_冻结清单.json" --style mixed \
+    --receipt "<定稿>_冻结回执.json"
+# 体例也可交给 spec 定（优先级：--style > spec 的 xref_freeze.style > dead）：
+#   --spec ~/.workbuddy/skills/docx-format/spec/rd-program.json
+
+# ③ 独立验收（对冻结版，不在原稿上；--allow-remaining 给"故意保留的坏域数"）
+"$PY" "$X/verify_xref_freeze.py" "<定稿>_冻结.docx" \
+    --base "<定稿>.docx" --receipt "<定稿>_冻结回执.json" --allow-remaining 0
+```
+
+**硬不变量（脚本已断言，失败即拒绝落盘）**：
+
+1. `w:p` / `w:tbl` / `w:drawing` / 书签计数**与原稿逐一相同**（只动域，不动结构）；
+2. `REF` 指令下降数 == 冻结条目数（`5 → 1` 表示冻结 4、保留 1 个坏域）；
+3. 冻结后**不再有** `fldChar` 三态失衡（begin == separate == end）；
+4. 可见文本 == 回执按**坐标**重建的期望值（不按文本匹配，避免误伤同名题注）；
+5. 含 `w:tab` / `w:drawing` / `w:br` 的**坏域跳过不冻结**，原样保留并写入 `skipped`——
+   宁可留一个域，也不破坏结构；
+6. 句读清理：指示词/死格式文本与前后字之间的多余空格一律删除
+   （`见下表 。` → `见下表。`、`如 上图所示` → `如上图所示`）。
+
+**退出码**：`0` 成功 / `2` 验收失败 / `5` 指纹不符（出单后文档被改过）/ `6` 用法错误。
+
+**铁律**：
+
+- **冻结是单向的**：`fldChar` 删了就没了，无法从冻结版恢复成域。所以**只在版本锁定后做**；
+  冻结版是「交付/发布版」，**不要拿它继续编辑正文**。
+- **冻结后不要再按 `F9`**：域已不存在，按了没有任何效果（也正因此才安全）。
+- **冻结前先 `F9` 一次**：确保域缓存是最新的，否则冻结的可能是过期编号——
+  `xref_freeze` 会比对书签文本与域缓存，`agree=false` 的项按**书签语义值**冻结并在清单里标红。
+- **不要在 S6 的 `fields` 之后跳过本阶段就交付给第三方系统**：那等于把域留给不会算域的渲染器。
+
 ---
 
 ## S7（可选）分发瘦身：图片智能压缩
@@ -335,7 +440,7 @@ S=".../docx-unify-pipeline/scripts"
 **核心命令**（`scripts/compress_images.py`）：
 
 ```bash
-PY="C:/Users/14711/.workbuddy/binaries/python/envs/default/Scripts/python.exe"
+PY=~/.workbuddy/binaries/python/envs/default/Scripts/python.exe
 S=".../docx-unify-pipeline/scripts"
 
 "$PY" "$S/compress_images.py" "<源>.docx" "<源>_精简版.docx" 88 --expect-md5 <源md5>
@@ -408,8 +513,8 @@ docx-unify-pipeline/
 
 | skill | 提供 |
 |---|---|
-| `docx-format` | `docxfmt` 模块（`styles`/`run`/`lint`/`revise`）+ CRS 唯一实现 + `spec/default.json` |
-| `docx-numbering-xref-pipeline` | S2 五阶段剧本 + `verify_all.py` |
+| `docx-format` | `docxfmt` 模块（`styles`/`run`/`lint`/`revise`/`polish`/`pdfmeasure`）+ CRS 唯一实现 + `spec/default.json`、`spec/rd-program.json`（重点研发材料口径） |
+| `docx-numbering-xref-pipeline` | S2 五阶段剧本 + `verify_all.py` + S6.5 的 `xref_freeze.py` / `verify_xref_freeze.py` |
 | `docx-formula-image-to-omml` | 工具脚本（`fix_*.py` / `audit_*.py`） |
 
 ---
@@ -438,3 +543,5 @@ docx-unify-pipeline/
 - **不要在指纹不符时套用旧单。** 重新出单。
 - **不要让 ③④⑤ 在没有 COM 的情况下自动改。** 没量到分页就不许动排版。
 - **不要静默丢弃未勾选项。** 必须进回执的「未勾选未改」栏。
+- **不要在版本未锁定时冻结域。** 冻结单向不可逆，只对定稿版做（§S6.5）。
+- **不要拿冻结版继续编辑**，也不要在冻结后按 `F9`。
