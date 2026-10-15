@@ -412,6 +412,15 @@ python -m docxfmt polish 输入_修订.docx --apply \
     --out-docx 输出_排版.docx --receipt 排版回执.md
 ```
 
+**第二判据（强烈建议给）**：③④ 只看 COM 对象模型，容易漏。把导出的 PDF 也量一遍，
+两个判据对账，能抓出「第三方渲染真会出问题、但 COM 没报」的页：
+
+```bash
+python -m docxfmt pdfmeasure 输入.docx --out PDF量测.json      # 导 PDF + 量文本层
+python -m docxfmt polish 输入.docx --pages 量页.json \
+    --pdf-measure PDF量测.json                                  # 对账（只作证据）
+```
+
 | # | 硬要求 | 类别 | 默认档 | executor | 判据要点 |
 |---|---|---|---|---|---|
 | ① | **>100 页时一级标题分页** | 版式 | A | `pagebreak` | **仅当总页数 > 100**；给各级标题设 `pageBreakBefore` |
@@ -453,6 +462,45 @@ python -m docxfmt polish 输入_修订.docx --apply \
 |---|---|---|---|
 | **三线表** | 单线 1.5pt（val=12） | 0.75pt（val=6） | `nil` |
 | **全框** | 单线 0.5pt（val=4） | 0.5pt（val=4） | 0.5pt（val=4） |
+
+---
+
+## 渲染级第二判据：`pdfmeasure`
+
+`polish` 的 ③④ 走 **Word/WPS COM 对象模型**（`Range.Information`）。它快、能对回段落，
+但**依赖对象模型自洽**——WPS 对 `PageSetup.*` 返回哨兵值，域/浮动图/分栏下
+`Information` 也可能与实际排版不一致。**交付物是 PDF，不是对象模型。**
+所以再量一遍导出的 PDF 文本层，两者对账。
+
+```bash
+python -m docxfmt pdfmeasure 输入.docx --out PDF量测.json   # 自动导 PDF + 逐行量
+python -m docxfmt pdfmeasure 现有.pdf -o PDF量测.json        # 已有 PDF 直接量
+python -m docxfmt pdfmeasure 输入.docx --vs-com 量页.json    # 顺手与 COM 判据对账
+```
+
+**量什么**（纯文本层，`pymupdf` 逐行 bbox）：
+
+| 产出 | 含义 |
+|---|---|
+| `pitch` / `line_height` | 真实**行距** / 单行高（pt）——比 COM 推的"行高"可信 |
+| `findings.orphan_lines` | **孤字行**：整行归一化长度 ≤ 2 且明显短于本页中位行长 |
+| `findings.big_gaps` | **大空白**：相邻两行之间 ≥ N 倍行距的竖直空档 |
+| `findings.low_fill_pages` | **低填充页**：正文覆盖 < 阈值（默认 0.55），排除末页/下一章首页 |
+| `cross_check` | 与 COM 判据的**按页对账**：仅 COM / 仅 PDF / 共同 |
+
+**三条实测换来的判据（不要放宽）**：
+
+- **页眉页脚必须先剔除**：落在 `top` 上边距之上、`bottom` 下边距之下的行一律丢弃，
+  否则页码会被当成"孤字行"（实测第 4 页页脚 `4` 差点被计）。
+- **空白带被图/表覆盖就不算空白**：`pymupdf` 的 image block 有 bbox，
+  空档与该 bbox 竖直重叠 ≥ 50% → 是图不是空白。**只排文本行不看图片会假报一片空白。**
+- **「下一章首页」正则必须含「第X章」**：本机 WPS 把 `第二章 方法` 渲染成 `第二章方法`
+  （空格被吞），漏了这一支 → 章末留白被误报（实测 8 页文档误报 1 页）。
+
+**行高标定对账**：③ 的阈值挂在 COM 推的"行高"上。`polish --pdf-measure` 会算
+`COM行高 / PDF行距`，明显偏离（>1.5×）就打告警并记进 `baseline.pdf_judgment.line_height_calibration`。
+实测同一文档 COM 行高 **46.0pt** vs PDF 行距 **18.0pt（2.56×）**——
+说明 ③ 的「4 行空白」阈值按 46pt 算会放得极宽、系统性漏报，**该以 PDF 行距复核**。
 
 ---
 
@@ -521,7 +569,9 @@ python -m docxfmt facts 输入.docx --verdicts verdicts.json \
       "heading": {"1": "标题 1", "2": "标题 2", "3": "标题 3"},
       "caption": "题注",
       "image": "图片",                  // 图片独立样式：无首行缩进 + 居中
-      "table_text": "表格表头文字",
+      "table_text": "表格表头文字",       // 表头行（首行 / tblHeader 重复行）
+      "table_body": "表格文字",          // 表体文字：与表头分开，别再共用一个样式
+      "formula": "公式",                // 公式段独立样式：居中 + 无缩进（oMath 段）
       "toc_title": "目录标题",          // 目录标题独立样式：居中 + 无缩进
       "toc": {"1": "目录 1", "2": "目录 2", "3": "目录 3"}
     },
@@ -575,6 +625,13 @@ python -m docxfmt facts 输入.docx --verdicts verdicts.json \
 **默认模板**：`spec/default.json`。不传 `--spec` / `--template` / `--requirement` 时，
 `run`、`styles`、`lint` 都回退到它（`source.style_from` 默认 `"requirement"`）。
 默认值定义在 `docxfmt/spec.py` 的 `DEFAULT_REQUIREMENT`——**改默认口径改这里，不要在别处另写一份**。
+
+**`spec/rd-program.json`**：重点研发计划材料（申报书 / 任务书 / 中期·年度进展报告 /
+结题报告）的口径起点——正文仿宋_GB2312 小四、标题黑体递减、题注宋体五号、
+图表编号按章（`图 2-1`）、关掉图/表清单、三线表与全框表并存。
+**它是可改的基线，不是官方标准**：各单位/各年度指南版式会变，落笔前对照当次
+《申报通知》逐条核对。其中 `xref_freeze.style`（默认 `mixed`）会被 S6.5 的
+`xref_freeze.py --spec` 读作定稿冻结默认体例。
 
 ## 铁律（都是踩坑换来的，不要绕过）
 
@@ -632,7 +689,7 @@ python -m docxfmt facts 输入.docx --verdicts verdicts.json \
 ```
 docxfmt/
 ├── __main__.py     python -m docxfmt 入口
-├── cli.py          命令行（run / styles / lint / revise / propose / inspect / spec / fields / verify / polish / captions / facts）
+├── cli.py          命令行（run / styles / lint / revise / propose / inspect / spec / fields / verify / polish / pdfmeasure / captions / facts）
 ├── spec.py         规范定义（工具的输入契约）+ DEFAULT_REQUIREMENT
 ├── docxio.py       解包/打包/OOXML 构造
 ├── styles.py       样式表（按 w:name 索引、移植、几何）
@@ -652,6 +709,7 @@ docxfmt/
 ├── lint.py         S5 正文校验 P1~P10（只出 CRS，绝不改文档）
 ├── revise.py       S6 修订落盘（w:ins/w:del + 批注 + 不变量校验 + 回执）
 ├── paginate.py     渲染级量页（WPS/Word COM，Range.Information 六常量，独立进程）
+├── pdf_measure.py  ⭐ 渲染级第二判据：导 PDF → 文本层逐行量（孤字/空白/填充/对账）
 ├── verify.py       三层校验
 └── winfield.py     COM 重算域（独立进程，因 win32com 未必在主解释器里）
 ```
@@ -665,7 +723,9 @@ docxfmt/
 spec/                spec 样例
 ├── default.json               ⭐ 默认模板（无格式要求时的回退基准）
 ├── from-template.json         照模板排
-└── chapter-numbering.json     分章编号 + 公式编号
+├── chapter-numbering.json     分章编号 + 公式编号
+└── rd-program.json            ⭐ 重点研发计划材料（申报书/任务书/进展报告）口径
+                                （含 xref_freeze.style：S6.5 定稿冻结的默认体例）
 
 references/          协议细则（写盘门禁的唯一权威定义）
 └── change-request-sheet.md    CRS：schema / HTML 契约 / 授权话术 / 回执模板

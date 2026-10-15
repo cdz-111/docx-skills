@@ -70,8 +70,8 @@ def render(root, spec, table, stats=None, dry=False):
         if not want:
             return                       # null = 不动（封面/空段）
         st = table.resolve(want, NAME_ALIASES.get(want))
-        if st is None and role in ("table_text", "paragraph", "caption",
-                                   "image"):
+        if st is None and role in ("table_text", "table_body", "paragraph",
+                                   "caption", "image", "formula"):
             # 目标样式在文档里找不到就退回正文：不能因为模板没定义就整批不套
             body = spec.style_of("paragraph")
             st = table.resolve(body, NAME_ALIASES.get(body))

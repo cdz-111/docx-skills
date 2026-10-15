@@ -51,7 +51,14 @@ RE_CJK_SPACE = re.compile(r"([%s])([ \u3000]+)([0-9A-Za-z])" % CJK)
 RE_LATIN_SPACE = re.compile(r"([0-9A-Za-z])([ \u3000]+)([%s])" % CJK)
 RE_CAP_INTEXT = re.compile(r"^\s*([图表])\s*(\d{1,3})")
 RE_TOC_LINE = re.compile(r"[\t\u2026]\s*\d+\s*$")
-RE_NEW_CHAPTER = re.compile(r"^\s*(\d{1,2}\.\s|[一二三四五六七八九十]+、|附\s*录)")
+# 「像章节标题」的段落：第X章/节/篇、1.2 编号、一、二、三、附录/参考文献…
+# ⚠️ 必须含「第X章」：漏了这一支 → 大量**章末留白**被误报成正文空白（实测 8 页误报 1 页）。
+RE_NEW_CHAPTER = re.compile(
+    r"^\s*(?:第\s*[一二三四五六七八九十百零〇\d]+\s*[章节篇部讲]|"
+    r"\d{1,2}(?:\.\d+)*[\.\s、]|"
+    r"[一二三四五六七八九十]+\s*[、.]|"
+    r"附\s*录|参考文献|致\s*谢|摘\s*要|目\s*录|引\s*言|绪\s*论|"
+    r"结\s*论|讨\s*论|前\s*言)")
 TAIL_PUNCT = "。；：，！？、）」》”…"
 
 DEF_PAGE = {"w": 595.3, "h": 841.9, "top": 72.0, "bottom": 72.0,
@@ -500,7 +507,7 @@ def check_tables(ctx, b, log=print):
 
 
 # ================================================================== 入口
-def analyze(docx, spec, pages=None, log=print):
+def analyze(docx, spec, pages=None, pdf_result=None, log=print):
     ctx = Ctx(docx, spec)
     lh = measure_line_height(pages) if pages else 14.0
     b = CrsBuilder(docx, sources=("polish",),
@@ -531,6 +538,40 @@ def analyze(docx, spec, pages=None, log=print):
         log("[②] 空格规则归 lint P3/P4 统一负责，本模块不重复出单")
     log("-" * 66)
     log("合计：①%d  ③%d  ④%d  ⑤%d  ⑥%d" % (c1, c3, c4, c5, c6))
+    if pdf_result:
+        # 渲染级**第二判据**：对同一文档量导出的 PDF 文本层，与 COM 判据对账。
+        # 只作证据进 baseline，不参与任何自动决定（门禁不变）。
+        from . import pdf_measure as PM
+        log("-" * 66)
+        log("渲染级第二判据（PDF 文本层）：%d 页；孤字行 %d，大空白 %d，低填充页 %d"
+            % (pdf_result.get("pages") or 0,
+               (pdf_result.get("summary") or {}).get("orphan_lines", 0),
+               (pdf_result.get("summary") or {}).get("big_gaps", 0),
+               (pdf_result.get("summary") or {}).get("low_fill_pages", 0)))
+        cc = PM.compare(pages, pdf_result, geom=ctx.geom, fs=ctx.fs, log=log)
+        # 行高标定对账：③ 的阈值挂在 COM 推出的「行高」上，若它与 PDF 文本层实测的
+        # 真实行距差得远（>1.5×），③ 的判据会系统性失真（偏松→漏报 或 偏紧→误报）。
+        pdf_pitch = pdf_result.get("pitch") or 0
+        calib = None
+        if pdf_pitch and lh:
+            ratio = lh / pdf_pitch
+            calib = {"com_line_height_pt": round(lh, 2),
+                     "pdf_pitch_pt": round(pdf_pitch, 2),
+                     "ratio": round(ratio, 2)}
+            if ratio > 1.5 or ratio < 0.67:
+                log("[②③④ 交叉验证] ⚠ 行高标定不一致：COM 行高 %.1fpt vs "
+                    "PDF 实测行距 %.1fpt（%.2f×）→ ③ 的「4 行空白」阈值"
+                    "可能失真，建议以 PDF 行距复核" % (lh, pdf_pitch, ratio))
+        b.baseline["pdf_judgment"] = {
+            "pdf": pdf_result.get("pdf"),
+            "pdf_md5": pdf_result.get("pdf_md5"),
+            "engine": (pdf_result.get("engine") or {}).get("name"),
+            "pages": pdf_result.get("pages"),
+            "pitch_pt": pdf_result.get("pitch"),
+            "summary": pdf_result.get("summary"),
+            "cross_check": cc,
+            "line_height_calibration": calib,
+        }
     ctx.close()
     return b.build()
 

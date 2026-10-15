@@ -11,7 +11,7 @@ recognize.py —— 语义识别：把 docx 解析成文档树。
 import re
 
 from . import qn
-from .docxio import has_drawing, in_table, p_text
+from .docxio import has_drawing, has_omath, in_header_row, in_table, p_text
 
 # ------------------------------------------------------------------ 标题判定
 RE_L1_CN = re.compile(r"^\s*([一二三四五六七八九十百]+)\s*、")
@@ -349,6 +349,12 @@ def classify_one(p, txt, sid2name, cover_end, idx, state, bare=None):
     """
     nm = _style_name(p, sid2name) or ""
 
+    # 公式段必须排在「空段」判定之前：oMath 的可见内容不在 w:t 里，
+    # 纯公式段的 txt 是空的（顶多带个编号尾巴 (2-7)）。
+    # 行内公式（正文里夹 oMath）不会命中——那种段 txt 很长。
+    if has_omath(p) and not in_table(p) and len(txt) <= 12:
+        return "formula", 0
+
     if not txt:
         return "empty", 0
     # 目录条目先判：目录里的「一、xx」跟一级标题同形，但它是 toc 样式
@@ -362,7 +368,11 @@ def classify_one(p, txt, sid2name, cover_end, idx, state, bare=None):
         return "toc_title", 0
 
     if in_table(p):
-        return ("image" if (has_drawing(p) and len(txt) <= 12) else "table_text"), 0
+        if has_drawing(p) and len(txt) <= 12:
+            return "image", 0
+        # 表内文字分层：表头行（首行 / tblHeader 重复行）-> table_text，
+        # 其余 -> table_body。表格里也不该夹公式段（inline 公式走 table_body）。
+        return ("table_text" if in_header_row(p) else "table_body"), 0
 
     # 题注判定必须排在绘图判定前面（图片+题注同段的情况在 parse 前已拆开）
     if RE_CAP_HEAD.match(txt) and len(txt) <= 80:

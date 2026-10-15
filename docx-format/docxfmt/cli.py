@@ -396,7 +396,12 @@ def cmd_polish(args):
     elif not args.no_render:
         pages = _render_pages(args.infile)
 
-    c = PL.analyze(args.infile, spec, pages)
+    pdf_result = None
+    if getattr(args, "pdf_measure", None):
+        with open(args.pdf_measure, "r", encoding="utf-8") as f:
+            pdf_result = json.load(f)
+
+    c = PL.analyze(args.infile, spec, pages, pdf_result=pdf_result)
     jp = args.out or _sibling(args.infile, "排版事项.json")
     hp = args.html or _sibling(args.infile, "排版事项.html")
     CRS.write_json(c, jp)
@@ -409,6 +414,42 @@ def cmd_polish(args):
     print()
     print("下一步：勾选后执行（分页/表格边框类）——")
     print("  python -m docxfmt polish <文档> --apply --crs %s" % jp)
+    return 0
+
+
+def cmd_pdfmeasure(args):
+    """渲染级第二判据：导 PDF → 文本层逐行量（只读，不改文档）。"""
+    from . import pdf_measure as PM
+    try:
+        res = PM.measure(args.infile, pdf=args.pdf, out_pdf=args.out_pdf,
+                         min_gap_lines=args.min_gap_lines,
+                         orphan_max=args.orphan_max, low_fill=args.low_fill)
+    except Exception as e:                               # noqa: BLE001
+        print("[pdfmeasure] 失败：%r" % (e,))
+        return 2
+    if getattr(args, "vs_com", None):
+        with open(args.vs_com, "r", encoding="utf-8") as f:
+            com = json.load(f)
+        res["cross_check"] = PM.compare(com, res)
+    jp = args.out or _sibling(args.infile, "PDF量测.json")
+    with open(jp, "w", encoding="utf-8") as f:
+        json.dump(res, f, ensure_ascii=False, indent=1)
+    s = res["summary"]
+    print()
+    print("PDF 量测：%d 页；孤字行 %d，大空白 %d，低填充页 %d；"
+          "行距 %.1fpt，单行高 %.1fpt"
+          % (s["pages"], s["orphan_lines"], s["big_gaps"],
+             s["low_fill_pages"], res["pitch"], res["line_height"]))
+    if s["low_fill_pages"]:
+        pages = [p["page"] for p in res["findings"]["low_fill_pages"]][:15]
+        print("  低填充页（可能的留白）：%s" % pages)
+    if s["orphan_lines"]:
+        print("  孤字行：%s" % [(o["page"], o["text"])
+                             for o in res["findings"]["orphan_lines"]][:10])
+    print("-> %s" % jp)
+    print()
+    print("下一步：把它作为 polish 的第二判据对账——")
+    print("  python -m docxfmt polish <文档> --pdf-measure %s" % jp)
     return 0
 
 
@@ -586,6 +627,8 @@ def main(argv=None):
     po.add_argument("infile")
     _add_common_spec(po)
     po.add_argument("--pages", help="paginate.py 的量页 json（不给则自动量）")
+    po.add_argument("--pdf-measure",
+                    help="pdf_measure.py 的 PDF 量测 json（第二判据，只做对账）")
     po.add_argument("--no-render", action="store_true",
                     help="不量页，只做静态检查（①⑥）")
     po.add_argument("--out", help="CRS json 路径")
@@ -597,6 +640,23 @@ def main(argv=None):
     po.add_argument("--receipt", help="回执 md 路径")
     po.add_argument("--dry", action="store_true")
     po.set_defaults(func=cmd_polish)
+
+    # pdfmeasure（渲染级第二判据：PDF 文本层）
+    pm = sub.add_parser("pdfmeasure",
+                        help="渲染级第二判据：导 PDF → 文本层量孤字/空白/填充")
+    pm.add_argument("infile", help=".docx（自动导 PDF）或 .pdf（直接量）")
+    pm.add_argument("-o", "--out", help="结果 json 路径")
+    pm.add_argument("--pdf", help="已有的 PDF（给则不再导出）")
+    pm.add_argument("--out-pdf", dest="out_pdf", help="导出的 PDF 路径")
+    pm.add_argument("--min-gap-lines", dest="min_gap_lines", type=float,
+                    default=4.0, help="判定大空白的行数阈值（默认 4）")
+    pm.add_argument("--orphan-max", dest="orphan_max", type=int, default=2,
+                    help="孤字行最大字符数（默认 2）")
+    pm.add_argument("--low-fill", dest="low_fill", type=float, default=0.55,
+                    help="页填充率低于此值视为留白页（默认 0.55）")
+    pm.add_argument("--vs-com", dest="vs_com",
+                    help="给 paginate.py 的量页 json → 交叉验证")
+    pm.set_defaults(func=cmd_pdfmeasure)
 
     # captions（S3 题注补插）
     cp = sub.add_parser("captions", help="S3 题注补插（只出单）")

@@ -1,0 +1,162 @@
+{
+  "name": "rd_program_proposal",
+  "display_name": "国家重点研发计划材料模板（申报书 / 任务书 / 进展报告）",
+
+  "_doc": "本 spec 是「重点研发计划」类材料（申报书、任务书、中期/年度进展报告、结题报告）的排版口径起点。**把这份当可改的基线，不要当官方标准**——各单位/各年度指南的版式要求会变，落笔前请对照当次《申报通知》或《编制说明》逐条核对，把不符的字段改掉。所有字段含义见 docxfmt/spec.py 顶部速查。",
+  "_applies_to": ["申报书", "任务书", "中期进展报告", "年度进展报告", "结题报告"],
+
+  "source": {
+    "style_from": "requirement",
+    "template": null,
+    "requirement": null
+  },
+
+  "styles": {
+    "map": {
+      "paragraph": "正文",
+      "heading": {
+        "1": "标题 1",
+        "2": "标题 2",
+        "3": "标题 3",
+        "4": "标题 4",
+        "5": "标题 5",
+        "6": "标题 6"
+      },
+      "caption": "题注",
+      "image": "图片",
+      "table_text": "表格表头文字",
+      "table_body": "表格文字",
+      "formula": "公式",
+      "toc_title": "目录标题",
+      "toc": { "1": "目录 1", "2": "目录 2", "3": "目录 3" },
+      "appendix": "附录",
+      "formula_number": "公式编号",
+      "header": "页眉",
+      "footer": "页脚"
+    },
+
+    "new_styles": {
+      "图片": { "based_on": "正文", "align": "center", "first_line": 0 },
+      "公式": { "based_on": "正文", "align": "center", "first_line": 0 },
+      "目录标题": {
+        "based_on": "正文", "align": "center", "first_line": 0,
+        "size": 16, "font": "黑体", "bold": true
+      },
+      "表格表头文字": {
+        "based_on": "正文", "align": "center", "first_line": 0,
+        "size": 10.5, "bold": true
+      },
+      "表格文字": {
+        "based_on": "正文", "align": "center", "first_line": 0, "size": 10.5
+      },
+      "公式编号": { "based_on": "正文", "first_line": 0, "size": 10.5 }
+    },
+
+    "geometry": {
+      "正文": {
+        "size": 12, "font": "仿宋_GB2312", "align": "both",
+        "first_line": 24, "before": 0, "after": 0, "line": "1.5x"
+      },
+      "标题 1": {
+        "size": 16, "font": "黑体", "bold": true, "align": "left",
+        "first_line": 0, "before": 17, "after": 16.5, "line": "1.5x",
+        "keep_next": true
+      },
+      "标题 2": {
+        "size": 14, "font": "黑体", "bold": true, "align": "left",
+        "first_line": 0, "before": 13, "after": 13, "line": "1.5x",
+        "keep_next": true
+      },
+      "标题 3": {
+        "size": 12, "font": "黑体", "bold": true, "align": "left",
+        "first_line": 0, "before": 13, "after": 13, "line": "1.5x",
+        "keep_next": true
+      },
+      "标题 4": {
+        "size": 12, "font": "黑体", "bold": false, "align": "left",
+        "first_line": 24, "before": 6, "after": 6, "line": "1.5x",
+        "keep_next": true
+      },
+      "题注": {
+        "size": 10.5, "font": "宋体", "align": "center",
+        "first_line": 0, "before": 6, "after": 6, "line": "1.5x"
+      },
+      "图片": { "align": "center", "first_line": 0 },
+      "公式": { "align": "center", "first_line": 0 },
+      "公式编号": { "align": "right", "first_line": 0, "size": 10.5 },
+      "表格表头文字": {
+        "size": 10.5, "font": "宋体", "bold": true,
+        "align": "center", "first_line": 0
+      },
+      "表格文字": {
+        "size": 10.5, "font": "宋体", "align": "center", "first_line": 0
+      },
+      "目录标题": {
+        "size": 16, "font": "黑体", "bold": true, "align": "center",
+        "first_line": 0, "before": 12, "after": 12
+      },
+      "目录 1": { "size": 12, "font": "宋体", "first_line": 0 },
+      "目录 2": { "size": 12, "font": "宋体", "first_line": 0 },
+      "目录 3": { "size": 12, "font": "宋体", "first_line": 0 },
+      "附录": {
+        "size": 16, "font": "黑体", "bold": true, "align": "left",
+        "first_line": 0, "before": 17, "after": 16.5, "keep_next": true
+      }
+    }
+  },
+
+  "numbering": {
+    "caption": "chapter",
+    "formula": "chapter",
+    "sep": "-",
+    "skip_keywords": [
+      "摘要", "ABSTRACT", "项目摘要", "项目简介",
+      "引言", "前言", "绪论",
+      "目录", "插图清单", "附表清单", "图目录", "表目录",
+      "参考文献", "致谢", "附录", "附件"
+    ]
+  },
+
+  "toc": {
+    "enabled": true,
+    "levels": "1-3",
+    "title": "目录",
+    "title_style": "目录标题",
+    "after": "first_heading"
+  },
+  "figure_list": { "enabled": false, "title": "插图清单" },
+  "table_list": { "enabled": false, "title": "附表清单" },
+
+  "captions": { "enabled": true, "kinds": ["图", "表"] },
+  "xref": { "enabled": true },
+
+  "pagebreak": { "before_heading": [1], "keep_with_next": true },
+  "section": { "insert": [], "orientation": "keep" },
+  "page": { "copy_from_template": false },
+
+  "tables": {
+    "border_style": "auto",
+    "three_line_data_table": true,
+    "full_grid_text_table": true,
+    "text_table_min_chars": 60,
+    "max_width_percent": 100,
+    "repeat_header_row": true
+  },
+
+  "spacing": {
+    "normalize_cjk_latin": true,
+    "keep_caption_space": true
+  },
+
+  "lint": {
+    "scope": "body",
+    "exclude": ["formula", "appendix"],
+    "punctuation_fullwidth": true,
+    "no_space_after_punct": true
+  },
+
+  "xref_freeze": {
+    "style": "mixed",
+    "_doc": "S6.5 定稿冻结的默认体例（docx-numbering-xref-pipeline/scripts/xref_freeze.py --spec 读它）。mixed = 同一图表首次给「图 2-1」死格式、后续用「如上图/见下表」指示词；整篇只想要一种就改成 dead 或 indicator。规则：版本锁定后交叉引用一律转成正文纯文本，否则非 Word 的渲染系统会渲染出过期编号或「错误！未定义书签」。"
+  }
+}

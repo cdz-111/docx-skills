@@ -16,6 +16,8 @@
       "caption": "题注",
       "image": "图片",
       "table_text": "表格表头文字",
+      "table_body": "表格文字",
+      "formula": "公式",
       "toc_title": "目录标题",
       "toc": { "1": "目录 1", "2": "目录 2", "3": "目录 3" },
       "appendix": "附录",
@@ -26,6 +28,7 @@
 
     "new_styles": {
       "图片": { "based_on": "正文", "align": "center", "first_line": 0 },
+      "公式": { "based_on": "正文", "align": "center", "first_line": 0 },
       "目录标题": {
         "based_on": "正文", "align": "center", "first_line": 0,
         "size": 16, "font": "黑体", "bold": true

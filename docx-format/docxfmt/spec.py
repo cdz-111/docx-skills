@@ -15,8 +15,9 @@ spec.py —— 排版规范：工具的输入契约。
 
     styles.map               角色 -> 样式 w:name 语义名
                             paragraph / heading{1..6} / caption / image /
-                            table_text / toc_title / toc{1..3} /
-                            appendix / formula_number / header / footer
+                            table_text(表头) / table_body(表体) /
+                            formula(公式段) / formula_number(公式编号) /
+                            toc_title / toc{1..3} / appendix / header / footer
     styles.geometry          要强制覆盖模板的几何（不填就以模板为准）
                             { 样式名: {size, font, first_line, align, ...} }
 
@@ -78,6 +79,8 @@ DEFAULTS = {
             "caption": "题注",
             "image": "图片",
             "table_text": "表格表头文字",
+            "table_body": "表格文字",
+            "formula": "公式",
             "toc_title": "目录标题",
             "toc": {"1": "目录 1", "2": "目录 2", "3": "目录 3"},
             "appendix": "附录",
@@ -250,6 +253,8 @@ def write_sample(path, mode="template"):
                     "caption": "caption",
                     "image": "图片",
                     "table_text": "表格表头文字",
+                    "table_body": "表格文字",
+                    "formula": "公式",
                     "toc_title": "TocTitle",
                     "toc": {"1": "toc 1", "2": "toc 2", "3": "toc 3"},
                 },

@@ -11,7 +11,7 @@ import zipfile
 
 from lxml import etree
 
-from . import XSPACE, qn
+from . import XSPACE, qn, M
 
 CT_MAIN = ("application/vnd.openxmlformats-officedocument"
            ".wordprocessingml.document.main+xml")
@@ -213,6 +213,41 @@ def in_table(node):
 
 def has_drawing(node):
     return node.find(".//" + qn("drawing")) is not None
+
+
+def has_omath(node):
+    """段落里是否含 OMML 公式（m:oMath / m:oMathPara）。
+
+    ⚠️ oMath 的可见内容不在 w:t 里，所以纯公式段的 p_text 是空的——
+    判定「这是不是公式段」只能看元素，不能看文本。
+    """
+    return (node.find(".//" + qn("oMath", M)) is not None
+            or node.find(".//" + qn("oMathPara", M)) is not None)
+
+
+def in_header_row(p):
+    """段落是否位于所在表格的**表头行**。
+
+    表头行两种认定，任一成立即可：
+      1. 显式重复表头：w:tr/w:trPr/w:tblHeader（跨页表头，最可靠）；
+      2. 所在 w:tbl 的第一个 w:tr（约定俗成的首行表头）。
+    其余行 -> 表体（table_body）。
+    """
+    n = p.getparent()
+    tr = tbl = None
+    while n is not None:
+        if tr is None and n.tag == qn("tr"):
+            tr = n
+        if n.tag == qn("tbl"):
+            tbl = n
+            break
+        n = n.getparent()
+    if tbl is None or tr is None:
+        return False
+    trpr = tr.find(qn("trPr"))
+    if trpr is not None and trpr.find(qn("tblHeader")) is not None:
+        return True
+    return tbl.find(qn("tr")) is tr
 
 
 def first_rpr(p):

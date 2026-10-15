@@ -21,6 +21,8 @@ NAME_ALIASES = {
     "题注": ["题注", "caption", "Caption"],
     "图片": ["图片", "Image", "image"],
     "表格表头文字": ["表格表头文字", "表格文字", "TableText"],
+    "表格文字": ["表格文字", "表格表头文字", "TableText", "Table Text"],
+    "公式": ["公式", "Formula", "OMML公式"],
     "目录标题": ["目录标题", "TocTitle", "TOC Title", "TOC标题"],
     "附录": ["附录", "Appendix"],
     "公式编号": ["公式编号", "FormulaNumber"],
