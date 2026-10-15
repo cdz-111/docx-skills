@@ -633,6 +633,62 @@ S1 审计报告整理出的 `items.json`（已在 `items.json` 里写好 CRS 行
 **2026-10-12 实战**：15 书签 + 20 域（p7772 一句 6 处）；验收 **29 项全绿**；可见文字仅 **3 处**变化（补空格
 `图2-7`→`图 2-7`）；除 `document.xml` 外 279 部件逐字节一致。
 
+### 9.3.7 定稿冻结执行器（`scripts/xref_freeze.py`）—— S6.5 专用
+
+**何时用**：**版本已锁定**（修订全部接受、域已 `F9` 重算过一次），且文档要交给
+**非 Word 的渲染系统**（在线预览 / 导 PDF / 转 HTML / 第三方解析器）。这些系统**不认 REF 域**——
+要么读到域指令本身，要么读到过期缓存，渲染就出错（「错误！未定义书签」或旧编号）。
+定稿时把 `REF` 域整体替换为**纯文本**，任何系统渲染都正确。
+
+> ⚠️ 与 §9.3.6 方向相反：那一节是**正文硬写 → 域**（编辑期归一）；
+> 本节是**域 → 正文**（终态冻结）。**冻结单向不可逆**，只在版本锁定后做，
+> 冻结产物是「交付/发布版」，**不要再拿它编辑正文、也不要再按 F9**。
+
+```bash
+PY=~/.workbuddy/binaries/python/envs/default/Scripts/python.exe
+N=~/.workbuddy/skills/docx-numbering-xref-pipeline/scripts
+
+# ① 审计（只读）：逐条 ID/位置/缓存/建议替换/体例判定/是否 agree
+"$PY" "$N/xref_freeze.py" audit <定稿>.docx -o 冻结事项.json
+# 🛑 老板确认体例；不需要的项把 include 置 false
+
+# ② 执行（写盘）：体例取值优先级 = 命令行 --style > spec 的 xref_freeze.style > dead
+"$PY" "$N/xref_freeze.py" apply <定稿>.docx <定稿>_冻结.docx \
+    --plan 冻结事项.json --style mixed --receipt 冻结回执.json
+# 也可以让 spec 定体例（不再手打 --style）：
+"$PY" "$N/xref_freeze.py" apply <定稿>.docx <定稿>_冻结.docx \
+    --plan 冻结事项.json \
+    --spec ~/.workbuddy/skills/docx-format/spec/rd-program.json \
+    --receipt 冻结回执.json
+
+# ③ 独立验收（对冻结版，不在原稿上）
+"$PY" "$N/verify_xref_freeze.py" <定稿>_冻结.docx --base <定稿>.docx \
+    --receipt 冻结回执.json --allow-remaining 0
+```
+
+**体例三档**：
+
+| 体例 | 结果 | 适用 |
+|---|---|---|
+| `dead` | 死格式 `图 5-5` / `表 6-1` | 严谨正文，编号即事实 |
+| `indicator` | 指示词 `如上图` / `见下表` | 就近描述（书签在引用前→上图，后→下表） |
+| `mixed` | 同一目标首次死格式，后续指示词 | 长文反复引用同一图表 |
+
+**自动句读清理**（两种体例通用，回执里逐条记 `cleanups`）：
+`见下表 。`→`见下表。`（句读前不留空格）；indicator 另做
+`上图 所示`→`如上图所示`、`如 上图`→`如上图`。
+
+**不变量（任一破坏 → 不落盘，exit 2）**：`w:p`/`w:tbl`/`w:drawing`/书签计数不变；
+`fldChar` 恰好下降 3×N；`REF` 指令恰好下降 N；可见文本 == 回执按**坐标**重建的期望值。
+`span` 里含 `w:tab`/`w:drawing`/`w:br` 的**坏域跳过不冻结**，原样保留并记入 `skipped`。
+
+`verify_xref_freeze.py` 六项：三态配平 / REF 残留 / 书签配平 / 无未定义书签文本 /
+与基线结构计数一致 / 可见文本 == 回执期望。
+
+**2026-10-13 实测**：合成文档 5 个 REF（4 可冻结 + 1 坏域带 tab）→ 三体例各验收 20 项全绿；
+`dead` 得「对比结果见表 6-1。实验设置如图 5-5 所示」，`indicator` 得
+「对比结果见下表。实验设置如上图所示」，`mixed` 首次死格式、后续指示词。
+
 ### 9.4 与 S1 的先后关系
 
 **S1（样式基准）与 S2（编号治理）是并行支路**，互不依赖：
